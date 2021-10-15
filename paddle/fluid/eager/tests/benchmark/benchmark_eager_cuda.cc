@@ -42,7 +42,7 @@ TEST(Benchmark, EagerScalePerformance) {
     RetainGradForTensor(tensor);
 
     if (mode == "Accuracy") {
-      benchmark_eager_scale_accuracy_check(tensor);
+      benchmark_eager_scale(tensor, true /* accuracy_check */);
 
     } else if (mode == "WarmUp") {
       benchmark_eager_scale(tensor);
@@ -87,7 +87,7 @@ TEST(Benchmark, EagerIntermediateMatmulPerformance) {
     RetainGradForTensor(Y);
 
     if (mode == "Accuracy") {
-      benchmark_eager_intermediate_matmul_accuracy_check(X, Y);
+      benchmark_eager_intermediate_matmul(X, Y, true /* accuracy_check */);
 
     } else if (mode == "WarmUp") {
       benchmark_eager_intermediate_matmul(X, Y);

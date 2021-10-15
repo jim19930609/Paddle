@@ -42,56 +42,42 @@ namespace egr {
 /* --------------------- */
 /* ---- Eager Scale ---- */
 /* --------------------- */
-void benchmark_eager_scale_accuracy_check(
-    const paddle::experimental::Tensor& tensor) {
-  paddle::experimental::Tensor input_tensor = tensor;
+void benchmark_eager_scale(const pt::Tensor& tensor, bool accuracy_check) {
+  pt::Tensor input_tensor = tensor;
   float scale = 2.0;
   float bias = 3.0;
 
-  size_t max_num_runs = 10;
+  size_t max_num_runs = accuracy_check ? 10 : max_num_benchmark_runs;
   for (size_t i = 0; i < max_num_runs; i++) {
     input_tensor =
         egr::scale(input_tensor, scale, bias, true /*bias_after_scale*/,
                    true /*trace_backward*/);
   }
 
-  std::vector<paddle::experimental::Tensor> target_tensors = {input_tensor};
+  std::vector<pt::Tensor> target_tensors = {input_tensor};
   RunBackward(target_tensors, {});
 
-  // Examine Forward Grad (w.r.t max_num_runs = 10)
-  PADDLE_ENFORCE(
-      CompareTensorWithValue<float>(input_tensor, 8189.0) == true,
-      paddle::platform::errors::Fatal("Numerical Error, Expected %f", 8189.0));
-  // Examine Backward Grad (w.r.t max_num_runs = 10)
-  PADDLE_ENFORCE(
-      CompareGradTensorWithValue<float>(tensor, 1024.0) == true,
-      paddle::platform::errors::Fatal("Numerical Error, Expected %f", 1024.0));
-}
-
-void benchmark_eager_scale(const paddle::experimental::Tensor& tensor) {
-  paddle::experimental::Tensor input_tensor = tensor;
-  float scale = 2.0;
-  float bias = 3.0;
-
-  for (size_t i = 0; i < max_num_benchmark_runs; i++) {
-    input_tensor =
-        egr::scale(input_tensor, scale, bias, true /*bias_after_scale*/,
-                   true /*trace_backward*/);
+  if (accuracy_check) {
+    // Examine Forward Grad (w.r.t max_num_runs = 10)
+    PADDLE_ENFORCE(CompareTensorWithValue<float>(input_tensor, 8189.0) == true,
+                   paddle::platform::errors::Fatal(
+                       "Numerical Error, Expected %f", 8189.0));
+    // Examine Backward Grad (w.r.t max_num_runs = 10)
+    PADDLE_ENFORCE(CompareGradTensorWithValue<float>(tensor, 1024.0) == true,
+                   paddle::platform::errors::Fatal(
+                       "Numerical Error, Expected %f", 1024.0));
   }
-
-  std::vector<paddle::experimental::Tensor> target_tensors = {input_tensor};
-  RunBackward(target_tensors, {});
 }
 
 /* ----------------------------------- */
 /* ---- Eager Intermediate Matmul ---- */
 /* ----------------------------------- */
-void benchmark_eager_intermediate_matmul_accuracy_check(
-    const paddle::experimental::Tensor& X,
-    const paddle::experimental::Tensor& Y) {
-  paddle::experimental::Tensor input_tensor0 = X;
+void benchmark_eager_intermediate_matmul(const pt::Tensor& X,
+                                         const pt::Tensor& Y,
+                                         bool accuracy_check) {
+  pt::Tensor input_tensor0 = X;
 
-  size_t max_num_runs = 2;
+  size_t max_num_runs = accuracy_check ? 2 : max_num_benchmark_runs;
   for (size_t i = 0; i < max_num_runs; i++) {
     input_tensor0 = matmul_v2_dygraph_function(
         input_tensor0, Y, false /*trans_x*/, false /*trans_y*/,
@@ -100,36 +86,67 @@ void benchmark_eager_intermediate_matmul_accuracy_check(
         "" /*op_device*/, false /*with_quant_attr*/, true /*trace_backward*/);
   }
 
-  std::vector<paddle::experimental::Tensor> target_tensors = {input_tensor0};
+  std::vector<pt::Tensor> target_tensors = {input_tensor0};
   RunBackward(target_tensors, {});
 
-  // Examine Forward Grad (w.r.t max_num_runs = 2)
-  PADDLE_ENFORCE(
-      CompareTensorWithValue<float>(input_tensor0, 16) == true,
-      paddle::platform::errors::Fatal("Numerical Error, Expected %f", 8189.0));
-  // Examine Backward Grad (w.r.t max_num_runs = 2)
-  PADDLE_ENFORCE(
-      CompareGradTensorWithValue<float>(X, 16) == true,
-      paddle::platform::errors::Fatal("Numerical Error, Expected %f", 1024.0));
-  PADDLE_ENFORCE(
-      CompareGradTensorWithValue<float>(Y, 16) == true,
-      paddle::platform::errors::Fatal("Numerical Error, Expected %f", 1024.0));
+  if (accuracy_check) {
+    // Examine Forward Grad (w.r.t max_num_runs = 2)
+    PADDLE_ENFORCE(CompareTensorWithValue<float>(input_tensor0, 16) == true,
+                   paddle::platform::errors::Fatal(
+                       "Numerical Error, Expected %f", 8189.0));
+    // Examine Backward Grad (w.r.t max_num_runs = 2)
+    PADDLE_ENFORCE(CompareGradTensorWithValue<float>(X, 16) == true,
+                   paddle::platform::errors::Fatal(
+                       "Numerical Error, Expected %f", 1024.0));
+    PADDLE_ENFORCE(CompareGradTensorWithValue<float>(Y, 16) == true,
+                   paddle::platform::errors::Fatal(
+                       "Numerical Error, Expected %f", 1024.0));
+  }
 }
 
-void benchmark_eager_intermediate_matmul(
-    const paddle::experimental::Tensor& X,
-    const paddle::experimental::Tensor& Y) {
-  paddle::experimental::Tensor input_tensor0 = X;
-  for (size_t i = 0; i < max_num_benchmark_runs; i++) {
-    input_tensor0 = matmul_v2_dygraph_function(
-        input_tensor0, Y, false /*trans_x*/, false /*trans_y*/,
-        false /*use_mkldnn*/, "float32" /*mkldnn_data_type*/, 0 /*op_role*/,
-        {} /*op_role_var*/, "" /*op_namescope*/, {} /*op_callstack*/,
-        "" /*op_device*/, false /*with_quant_attr*/, true /*trace_backward*/);
-  }
+/* -------------------------------- */
+/* ---- Eager Intermediate MLP ---- */
+/* -------------------------------- */
+void benchmark_eager_intermediate_mlp(const pt::Tensor& X, const pt::Tensor& W1,
+                                      const pt::Tensor& W2,
+                                      bool accuracy_check) {
+  pt::Tensor Out1 = matmul_v2_dygraph_function(
+      X, W1, false /*trans_x*/, false /*trans_y*/, false /*use_mkldnn*/,
+      "float32" /*mkldnn_data_type*/, 0 /*op_role*/, {} /*op_role_var*/,
+      "" /*op_namescope*/, {} /*op_callstack*/, "" /*op_device*/,
+      false /*with_quant_attr*/, true /*trace_backward*/);
 
-  std::vector<paddle::experimental::Tensor> target_tensors = {input_tensor0};
+  pt::Tensor Out2 = matmul_v2_dygraph_function(
+      Out1, W2, false /*trans_x*/, false /*trans_y*/, false /*use_mkldnn*/,
+      "float32" /*mkldnn_data_type*/, 0 /*op_role*/, {} /*op_role_var*/,
+      "" /*op_namescope*/, {} /*op_callstack*/, "" /*op_device*/,
+      false /*with_quant_attr*/, true /*trace_backward*/);
+
+  pt::Tensor Out = reduce_sum_dygraph_function(
+      Out2, {0} /*dim*/, false /*keep_dim*/, true /*reduce_all*/,
+      -1 /*in_dtype*/, -1 /*out_dtype*/, false /*use_mkldnn*/, 0 /*op_role*/,
+      {} /*op_role_var*/, "" /*op_namescope*/, {} /*op_callstack*/,
+      "" /*op_device*/, false /*with_quant_attr*/, true /*trace_backward*/);
+
+  std::vector<pt::Tensor> target_tensors = {Out};
   RunBackward(target_tensors, {});
+
+  if (accuracy_check) {
+    // Examine Forward Grad (w.r.t max_num_runs = 2)
+    PADDLE_ENFORCE(CompareTensorWithValue<float>(Out, 786432) == true,
+                   paddle::platform::errors::Fatal(
+                       "Numerical Error, Expected %f", 786432));
+    // Examine Backward Grad (w.r.t max_num_runs = 2)
+    PADDLE_ENFORCE(CompareGradTensorWithValue<float>(X, 12288) == true,
+                   paddle::platform::errors::Fatal(
+                       "Numerical Error, Expected %f", 12288.0));
+    PADDLE_ENFORCE(
+        CompareGradTensorWithValue<float>(W1, 768) == true,
+        paddle::platform::errors::Fatal("Numerical Error, Expected %f", 768.0));
+    PADDLE_ENFORCE(
+        CompareGradTensorWithValue<float>(W2, 128) == true,
+        paddle::platform::errors::Fatal("Numerical Error, Expected %f", 128.0));
+  }
 }
 
 }  // namespace egr
@@ -137,46 +154,10 @@ void benchmark_eager_intermediate_matmul(
 namespace paddle {
 namespace imperative {
 
-/* --------------------- */
-/* ---- Fluid Scale ---- */
-/* --------------------- */
-// TODO(jiabin): Change this and remove nolint
-void benchmark_fluid_scale_accuracy_check(
-    const std::shared_ptr<imperative::VarBase>& X,
-    const std::shared_ptr<imperative::VarBase>& Out,
-    const paddle::platform::Place& place) {
-  imperative::Tracer tracer;
-  framework::AttributeMap attrs;
-
-  attrs["use_mkldnn"] = false;
-  attrs["scale"] = 2;
-  attrs["bias"] = 3;
-  attrs["bias_after_scale"] = true;
-
-  // NameVarBaseMap = std::map<std::string,
-  // std::vector<std::shared_ptr<VarBase>>>
-  imperative::NameVarBaseMap outs = {{"Out", {Out}}};
-  imperative::NameVarBaseMap ins = {{"X", {X}}};
-
-  size_t max_num_runs = 10;
-  for (size_t i = 0; i < max_num_runs; i++) {
-    tracer.TraceOp("scale", ins, outs, attrs, place, true);
-    if (i != max_num_runs - 1) {
-      ins = {{"X", outs["Out"]}};
-      outs = {{"Out",
-               {std::shared_ptr<imperative::VarBase>(
-                   new imperative::VarBase(true, "Out"))}}};
-    }
-  }
-
-  auto* engine = tracer.GetEngine();
-  std::vector<std::shared_ptr<imperative::VarBase>> grad_tensors{nullptr};
-  engine->Init(outs["Out"], grad_tensors, false /*retain_graph*/);
-  engine->Execute();
-
-  // Fwd Check: Expects 8189 with max_num_runs = 10
-  auto* tensor =
-      outs["Out"][0]->MutableVar()->GetMutable<framework::LoDTensor>();
+static void FluidCheckTensorValue(const std::shared_ptr<imperative::VarBase>& X,
+                                  const paddle::platform::Place& place,
+                                  float value) {
+  auto* tensor = X->MutableVar()->GetMutable<framework::LoDTensor>();
   float* t_ptr = tensor->mutable_data<float>(place);
   std::vector<float> host_data(tensor->numel());
   if (place == paddle::platform::CUDAPlace()) {
@@ -191,11 +172,14 @@ void benchmark_fluid_scale_accuracy_check(
                          sizeof(float) * tensor->numel(), stream);
     t_ptr = host_data.data();
   }
-  PADDLE_ENFORCE(
-      t_ptr[0] == 8189.0,
-      paddle::platform::errors::Fatal("Numerical Error, Expected %f", 8189.0));
+  VLOG(6) << "Tensor Value: " << t_ptr[0] << ", Expected Value: " << value;
+  PADDLE_ENFORCE(t_ptr[0] == value, paddle::platform::errors::Fatal(
+                                        "Numerical Error, Expected %f", value));
+}
 
-  // Grad Check: Expects 1024.0 with max_num_runs = 10
+static void FluidCheckGradTensorValue(
+    const std::shared_ptr<imperative::VarBase>& X,
+    const paddle::platform::Place& place, float value) {
   auto* grad_tensor = X->MutableGradVar()->GetMutable<framework::LoDTensor>();
   float* g_ptr = grad_tensor->mutable_data<float>(place);
   std::vector<float> g_host_data(grad_tensor->numel());
@@ -211,15 +195,18 @@ void benchmark_fluid_scale_accuracy_check(
                          sizeof(float) * grad_tensor->numel(), stream);
     g_ptr = g_host_data.data();
   }
-  PADDLE_ENFORCE(
-      g_ptr[0] == 1024.0,
-      paddle::platform::errors::Fatal("Numerical Error, Expected %f", 1024.0));
+  VLOG(6) << "Tensor Value: " << g_ptr[0] << ", Expected Value: " << value;
+  PADDLE_ENFORCE(g_ptr[0] == value, paddle::platform::errors::Fatal(
+                                        "Numerical Error, Expected %f", value));
 }
 
+/* --------------------- */
+/* ---- Fluid Scale ---- */
+/* --------------------- */
 // TODO(jiabin): Change this and remove nolint
 void benchmark_fluid_scale(const std::shared_ptr<imperative::VarBase>& X,
-                           const std::shared_ptr<imperative::VarBase>& Out,
-                           const paddle::platform::Place& place) {
+                           const paddle::platform::Place& place,
+                           bool accuracy_check) {
   imperative::Tracer tracer;
   framework::AttributeMap attrs;
 
@@ -228,128 +215,45 @@ void benchmark_fluid_scale(const std::shared_ptr<imperative::VarBase>& X,
   attrs["bias"] = 3;
   attrs["bias_after_scale"] = true;
 
-  // NameVarBaseMap = std::map<std::string,
-  // std::vector<std::shared_ptr<VarBase>>>
-  imperative::NameVarBaseMap outs = {{"Out", {Out}}};
-  imperative::NameVarBaseMap ins = {{"X", {X}}};
+  std::shared_ptr<imperative::VarBase> tmp_out = X;
 
-  for (size_t i = 0; i < max_num_benchmark_runs; i++) {
+  size_t max_num_runs = accuracy_check ? 10 : max_num_benchmark_runs;
+  for (size_t i = 0; i < max_num_runs; i++) {
+    imperative::NameVarBaseMap ins = {{"X", {tmp_out}}};
+    imperative::NameVarBaseMap outs = {
+        {"Out",
+         {std::shared_ptr<imperative::VarBase>(
+             new imperative::VarBase(true, "Out"))}}};
+
     tracer.TraceOp("scale", ins, outs, attrs, place, true);
-    if (i != max_num_benchmark_runs - 1) {
-      ins = {{"X", outs["Out"]}};
-      outs = {{"Out",
-               {std::shared_ptr<imperative::VarBase>(
-                   new imperative::VarBase(true, "Out"))}}};
-    }
+
+    tmp_out = outs["Out"][0];
   }
 
   auto* engine = tracer.GetEngine();
   std::vector<std::shared_ptr<imperative::VarBase>> grad_tensors{nullptr};
-  engine->Init(outs["Out"], grad_tensors, false /*retain_graph*/);
+  engine->Init({tmp_out}, grad_tensors, false /*retain_graph*/);
   engine->Execute();
+
+  if (accuracy_check) {
+    FluidCheckTensorValue(tmp_out, place, 8189.0);
+    FluidCheckGradTensorValue(X, place, 1024.0);
+  }
 }
 
 /* ---------------------- */
 /* ---- Fluid Matmul ---- */
 /* ---------------------- */
-void benchmark_fluid_matmul_accuracy_check(
-    const std::shared_ptr<imperative::VarBase>& X,
-    const std::shared_ptr<imperative::VarBase>& Y,
-    const std::shared_ptr<imperative::VarBase>& Out,
-    const paddle::platform::Place& place) {
-  imperative::Tracer tracer;
-  framework::AttributeMap attrs;
-
-  // NameVarBaseMap = std::map<std::string,
-  // std::vector<std::shared_ptr<VarBase>>>
-  imperative::NameVarBaseMap outs = {{"Out", {Out}}};
-  imperative::NameVarBaseMap ins = {{"X", {X}}, {"Y", {Y}}};
-
-  size_t max_num_runs = 2;
-  for (size_t i = 0; i < max_num_runs; i++) {
-    tracer.TraceOp("matmul_v2", ins, outs, attrs, place, true);
-    if (i != max_num_runs - 1) {
-      ins = {{"X", outs["Out"]}, {"Y", {Y}}};
-      outs = {{"Out",
-               {std::shared_ptr<imperative::VarBase>(
-                   new imperative::VarBase(true, "Out"))}}};
-    }
-  }
-
-  auto* engine = tracer.GetEngine();
-  std::vector<std::shared_ptr<imperative::VarBase>> grad_tensors{nullptr};
-  engine->Init(outs["Out"], grad_tensors, false /*retain_graph*/);
-  engine->Execute();
-
-  auto* tensor =
-      outs["Out"][0]->MutableVar()->GetMutable<framework::LoDTensor>();
-  float* t_ptr = tensor->mutable_data<float>(place);
-  std::vector<float> host_data(tensor->numel());
-  if (place == paddle::platform::CUDAPlace()) {
-    paddle::platform::DeviceContextPool& pool =
-        paddle::platform::DeviceContextPool::Instance();
-    auto* dev_ctx =
-        dynamic_cast<paddle::platform::CUDADeviceContext*>(pool.Get(place));
-    auto stream = dev_ctx->stream();
-
-    paddle::memory::Copy(paddle::platform::CPUPlace(), host_data.data(),
-                         paddle::platform::CUDAPlace(), t_ptr,
-                         sizeof(float) * tensor->numel(), stream);
-    t_ptr = host_data.data();
-  }
-  PADDLE_ENFORCE(t_ptr[0] == 16, paddle::platform::errors::Fatal(
-                                     "Numerical Error, Expected %f", 16));
-
-  {
-    auto* grad_tensor = X->MutableGradVar()->GetMutable<framework::LoDTensor>();
-    float* g_ptr = grad_tensor->mutable_data<float>(place);
-    std::vector<float> g_host_data(grad_tensor->numel());
-    if (place == paddle::platform::CUDAPlace()) {
-      paddle::platform::DeviceContextPool& pool =
-          paddle::platform::DeviceContextPool::Instance();
-      auto* dev_ctx =
-          dynamic_cast<paddle::platform::CUDADeviceContext*>(pool.Get(place));
-      auto stream = dev_ctx->stream();
-
-      paddle::memory::Copy(paddle::platform::CPUPlace(), g_host_data.data(),
-                           paddle::platform::CUDAPlace(), g_ptr,
-                           sizeof(float) * grad_tensor->numel(), stream);
-      g_ptr = g_host_data.data();
-    }
-    PADDLE_ENFORCE(g_ptr[0] == 16, paddle::platform::errors::Fatal(
-                                       "Numerical Error, Expected %f", 16));
-  }
-
-  {
-    auto* grad_tensor = Y->MutableGradVar()->GetMutable<framework::LoDTensor>();
-    float* g_ptr = grad_tensor->mutable_data<float>(place);
-    std::vector<float> g_host_data(grad_tensor->numel());
-    if (place == paddle::platform::CUDAPlace()) {
-      paddle::platform::DeviceContextPool& pool =
-          paddle::platform::DeviceContextPool::Instance();
-      auto* dev_ctx =
-          dynamic_cast<paddle::platform::CUDADeviceContext*>(pool.Get(place));
-      auto stream = dev_ctx->stream();
-
-      paddle::memory::Copy(paddle::platform::CPUPlace(), g_host_data.data(),
-                           paddle::platform::CUDAPlace(), g_ptr,
-                           sizeof(float) * grad_tensor->numel(), stream);
-      g_ptr = g_host_data.data();
-    }
-    PADDLE_ENFORCE(g_ptr[0] == 16, paddle::platform::errors::Fatal(
-                                       "Numerical Error, Expected %f", 16));
-  }
-}
-
 void benchmark_fluid_matmul(const std::shared_ptr<imperative::VarBase>& X,
                             const std::shared_ptr<imperative::VarBase>& Y,
-                            const std::shared_ptr<imperative::VarBase>& Out,
-                            const paddle::platform::Place& place) {
+                            const paddle::platform::Place& place,
+                            bool accuracy_check) {
   imperative::Tracer tracer;
 
   std::shared_ptr<imperative::VarBase> tmp_out = X;
 
-  for (size_t i = 0; i < max_num_benchmark_runs; i++) {
+  size_t max_num_runs = accuracy_check ? 2 : max_num_benchmark_runs;
+  for (size_t i = 0; i < max_num_runs; i++) {
     framework::AttributeMap attrs;
     imperative::NameVarBaseMap ins = {{"X", {tmp_out}}, {"Y", {Y}}};
     imperative::NameVarBaseMap outs = {
@@ -366,6 +270,62 @@ void benchmark_fluid_matmul(const std::shared_ptr<imperative::VarBase>& X,
   std::vector<std::shared_ptr<imperative::VarBase>> grad_tensors{nullptr};
   engine->Init({tmp_out}, grad_tensors, false /*retain_graph*/);
   engine->Execute();
+
+  if (accuracy_check) {
+    FluidCheckTensorValue(tmp_out, place, 16);
+    FluidCheckGradTensorValue(X, place, 16);
+    FluidCheckGradTensorValue(Y, place, 16);
+  }
+}
+
+/* ------------------- */
+/* ---- Fluid MLP ---- */
+/* ------------------- */
+void benchmark_fluid_mlp(const std::shared_ptr<imperative::VarBase>& X,
+                         const std::shared_ptr<imperative::VarBase>& W1,
+                         const std::shared_ptr<imperative::VarBase>& W2,
+                         const paddle::platform::Place& place,
+                         bool accuracy_check) {
+  imperative::Tracer tracer;
+
+  // Matmul0
+  framework::AttributeMap attrs;
+  imperative::NameVarBaseMap ins = {{"X", {X}}, {"Y", {W1}}};
+  imperative::NameVarBaseMap outs = {
+      {"Out",
+       {std::shared_ptr<imperative::VarBase>(
+           new imperative::VarBase(true, "Out"))}}};
+
+  tracer.TraceOp("matmul_v2", ins, outs, attrs, place, true);
+
+  // Matmul1
+  ins = {{"X", outs["Out"]}, {"Y", {W2}}};
+  outs = {{"Out",
+           {std::shared_ptr<imperative::VarBase>(
+               new imperative::VarBase(true, "Out"))}}};
+
+  tracer.TraceOp("matmul_v2", ins, outs, attrs, place, true);
+
+  // ReduceSum
+  ins = {{"X", outs["Out"]}};
+  outs = {{"Out",
+           {std::shared_ptr<imperative::VarBase>(
+               new imperative::VarBase(true, "Out"))}}};
+  attrs = {{"reduce_all", true}};
+
+  tracer.TraceOp("reduce_sum", ins, outs, attrs, place, true);
+
+  auto* engine = tracer.GetEngine();
+  std::vector<std::shared_ptr<imperative::VarBase>> grad_tensors{nullptr};
+  engine->Init(outs["Out"], grad_tensors, false /*retain_graph*/);
+  engine->Execute();
+
+  if (accuracy_check) {
+    FluidCheckTensorValue(outs["Out"][0], place, 786432);
+    FluidCheckGradTensorValue(X, place, 12288);
+    FluidCheckGradTensorValue(W1, place, 768);
+    FluidCheckGradTensorValue(W2, place, 128);
+  }
 }
 
 }  // namespace imperative

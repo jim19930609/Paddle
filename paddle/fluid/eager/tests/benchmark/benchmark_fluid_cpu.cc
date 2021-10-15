@@ -44,8 +44,6 @@ TEST(Benchmark, FluidScalePerformance) {
     std::shared_ptr<imperative::VarBase> X(new imperative::VarBase(true, "X"));
     X->SetOverridedStopGradient(false);
 
-    std::shared_ptr<imperative::VarBase> Out(
-        new imperative::VarBase(true, "Out"));
     std::vector<float> src_data(128, 5.0);
     std::vector<int64_t> dims = {2, 4, 4, 4};
 
@@ -56,13 +54,14 @@ TEST(Benchmark, FluidScalePerformance) {
                          sizeof(float) * src_data.size());
 
     if (mode == "Accuracy") {
-      benchmark_fluid_scale_accuracy_check(X, Out, platform::Place(place));
+      benchmark_fluid_scale(X, platform::Place(place),
+                            true /* accuracy_check */);
 
     } else if (mode == "Performance") {
       auto t_start = std::chrono::high_resolution_clock::now();
       ProfilerStart("fluid_scale_cpu.out");
 
-      benchmark_fluid_scale(X, Out, platform::Place(place));
+      benchmark_fluid_scale(X, platform::Place(place));
 
       ProfilerStop();
       auto t_end = std::chrono::high_resolution_clock::now();
@@ -87,8 +86,6 @@ TEST(Benchmark, FluidMatmulAccuracy) {
     std::shared_ptr<imperative::VarBase> Y(new imperative::VarBase(true, "Y"));
     Y->SetOverridedStopGradient(false);
 
-    std::shared_ptr<imperative::VarBase> Out(
-        new imperative::VarBase(true, "Out"));
     std::vector<float> x_src_data(4, 1.0);
     std::vector<float> y_src_data(4, 2.0);
     std::vector<int64_t> dims = {2, 2};
@@ -106,13 +103,14 @@ TEST(Benchmark, FluidMatmulAccuracy) {
                          sizeof(float) * y_src_data.size());
 
     if (mode == "Accuracy") {
-      benchmark_fluid_matmul_accuracy_check(X, Y, Out, platform::Place(place));
+      benchmark_fluid_matmul(X, Y, platform::Place(place),
+                             true /* accuracy_check */);
 
     } else if (mode == "Performance") {
       auto t_start = std::chrono::high_resolution_clock::now();
       ProfilerStart("fluid_matmul_cpu.out");
 
-      benchmark_fluid_matmul(X, Y, Out, platform::Place(place));
+      benchmark_fluid_matmul(X, Y, platform::Place(place));
 
       ProfilerStop();
       auto t_end = std::chrono::high_resolution_clock::now();

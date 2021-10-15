@@ -16,21 +16,21 @@
 
 #include "paddle/fluid/imperative/layer.h"
 #include "paddle/tcmpt/api/all.h"
-#include "paddle/tcmpt/hapi/all.h"
 
 namespace egr {
 
 /* ---- Eager Scale ---- */
-void benchmark_eager_scale_accuracy_check(
-    const paddle::experimental::Tensor& tensor);
-void benchmark_eager_scale(const paddle::experimental::Tensor& tensor);
+void benchmark_eager_scale(const pt::Tensor& tensor,
+                           bool accuracy_check = false);
 
 /* ---- Eager MatMul ---- */
-void benchmark_eager_intermediate_matmul_accuracy_check(
-    const paddle::experimental::Tensor& X,
-    const paddle::experimental::Tensor& Y);
-void benchmark_eager_intermediate_matmul(const paddle::experimental::Tensor& X,
-                                         const paddle::experimental::Tensor& Y);
+void benchmark_eager_intermediate_matmul(const pt::Tensor& X,
+                                         const pt::Tensor& Y,
+                                         bool accuracy_check = false);
+
+void benchmark_eager_intermediate_mlp(const pt::Tensor& X, const pt::Tensor& W1,
+                                      const pt::Tensor& W2,
+                                      bool accuracy_check = false);
 
 }  // namespace egr
 
@@ -38,29 +38,22 @@ namespace paddle {
 namespace imperative {
 /* ---- Fluid Scale ---- */
 // TODO(jiabin): Change this and remove nolint
-void benchmark_fluid_scale_accuracy_check(
-    const std::shared_ptr<imperative::VarBase>& X,    // NOLINT
-    const std::shared_ptr<imperative::VarBase>& Out,  // NOLINT
-    const paddle::platform::Place& place);
-
-// TODO(jiabin): Change this and remove nolint
 void benchmark_fluid_scale(
-    const std::shared_ptr<imperative::VarBase>& X,    // NOLINT
-    const std::shared_ptr<imperative::VarBase>& Out,  // NOLINT
-    const paddle::platform::Place& place);
+    const std::shared_ptr<imperative::VarBase>& X,  // NOLINT
+    const paddle::platform::Place& place, bool accuracy_check = false);
 
 /* ---- Fluid MatMul ---- */
-void benchmark_fluid_matmul_accuracy_check(
-    const std::shared_ptr<imperative::VarBase>& X,    // NOLINT
-    const std::shared_ptr<imperative::VarBase>& Y,    // NOLINT
-    const std::shared_ptr<imperative::VarBase>& Out,  // NOLINT
-    const paddle::platform::Place& place);
-
 void benchmark_fluid_matmul(
     const std::shared_ptr<imperative::VarBase>& X,
-    const std::shared_ptr<imperative::VarBase>& Y,    // NOLINT
-    const std::shared_ptr<imperative::VarBase>& Out,  // NOLINT
-    const paddle::platform::Place& place);
+    const std::shared_ptr<imperative::VarBase>& Y,  // NOLINT
+    const paddle::platform::Place& place, bool accuracy_check = false);
+
+/* ---- Fluid MLP ---- */
+void benchmark_fluid_mlp(const std::shared_ptr<imperative::VarBase>& X,
+                         const std::shared_ptr<imperative::VarBase>& W1,
+                         const std::shared_ptr<imperative::VarBase>& W2,
+                         const paddle::platform::Place& place,
+                         bool accuracy_check = false);
 
 }  // namespace imperative
 }  // namespace paddle
