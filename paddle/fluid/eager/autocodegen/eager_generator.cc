@@ -710,6 +710,18 @@ static std::string GenerateGradNodeCreationContent(
   return grad_node_creation_body_str;
 }
 
+static std::string AppendUseOp(const std::string& op_type) {
+  // [Generation] Append USE_OP
+  const char* USE_OP_TEMPLATE = "USE_OP(%s);\n";
+  std::string return_str = paddle::string::Sprintf(USE_OP_TEMPLATE, op_type);
+
+  // Special Ops
+  if (op_type == "reduce_sum")
+    return_str += paddle::string::Sprintf(USE_OP_TEMPLATE, "reduce_sum_grad");
+
+  return return_str;
+}
+
 /* -------------------------------- */
 /* --------- CodeGen: Forward ----- */
 /* -------------------------------- */
@@ -968,8 +980,7 @@ static std::pair<std::string, std::string> GenerateForwardFunctionContents(
       dygraph_function_args_str, generated_function_body);
 
   // [Generation] Append USE_OP
-  const char* USE_OP_TEMPLATE = "USE_OP(%s);\n";
-  fwd_function_str += paddle::string::Sprintf(USE_OP_TEMPLATE, op_type);
+  fwd_function_str += AppendUseOp(op_type);
 
   // [Generation] Generate forward functions header
   const char* FWD_HEADER_TEMPLATE = "%s %s(%s);\n";
@@ -1360,6 +1371,7 @@ static void GenerateNodeHFile(const std::string& op_type,
   std::string node_h_filename = op_type + "_node.h";
   std::string node_h_path = nodes_dir + node_h_filename;
   std::string node_h_include_str =
+      "#pragma once\n"
       "#include \"paddle/fluid/eager/tensor_wrapper.h\"\n"
       "#include \"paddle/fluid/eager/grad_node_info.h\"\n\n";
   std::ofstream node_h_stream(node_h_path, std::ios::out);
@@ -1393,6 +1405,7 @@ static void GenerateNodeCCFile(const std::string& op_type,
 
 static std::string GenerateDygraphHFileIncludes() {
   std::string dygraph_forward_api_includes_str =
+      "#pragma once\n"
       "#include \"glog/logging.h\"\n"
       "#include \"paddle/fluid/eager/autograd_meta.h\"\n"
       "#include \"paddle/tcmpt/hapi/all.h\"\n"

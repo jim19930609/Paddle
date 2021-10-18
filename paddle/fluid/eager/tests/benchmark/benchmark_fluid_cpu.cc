@@ -35,7 +35,7 @@
 namespace paddle {
 namespace imperative {
 
-TEST(Benchmark, FluidScalePerformance) {
+TEST(Benchmark, FluidScaleCPU) {
   // Prepare Device Contexts
   platform::CPUPlace place;
   egr::InitEnv(place);
@@ -75,7 +75,7 @@ TEST(Benchmark, FluidScalePerformance) {
   }
 }
 
-TEST(Benchmark, FluidMatmulAccuracy) {
+TEST(Benchmark, FluidMatmulCPU) {
   // Prepare Device Contexts
   platform::CPUPlace place;
   egr::InitEnv(place);
@@ -125,8 +125,70 @@ TEST(Benchmark, FluidMatmulAccuracy) {
   }
 }
 
+TEST(Benchmark, FluidMLPCPU) {
+  // Prepare Device Contexts
+  platform::CPUPlace place;
+  egr::InitEnv(place);
+
+  for (const std::string& mode : {"Accuracy", "Performance"}) {
+    std::shared_ptr<imperative::VarBase> X(new imperative::VarBase(true, "X"));
+    X->SetOverridedStopGradient(false);
+    std::shared_ptr<imperative::VarBase> W1(new imperative::VarBase(true, "Y"));
+    W1->SetOverridedStopGradient(false);
+    std::shared_ptr<imperative::VarBase> W2(new imperative::VarBase(true, "Y"));
+    W2->SetOverridedStopGradient(false);
+
+    std::vector<float> x_src_data(64, 1.0);
+    std::vector<float> w1_src_data(512, 2.0);
+    std::vector<float> w2_src_data(2048, 3.0);
+    std::vector<int64_t> x_dims = {4, 16};
+    std::vector<int64_t> w1_dims = {16, 32};
+    std::vector<int64_t> w2_dims = {32, 64};
+
+    auto* x_tensor = X->MutableVar()->GetMutable<framework::LoDTensor>();
+    x_tensor->Resize(framework::make_ddim(x_dims));
+    auto* mutable_x = x_tensor->mutable_data<float>(place);
+    paddle::memory::Copy(place, mutable_x, place, x_src_data.data(),
+                         sizeof(float) * x_src_data.size());
+
+    auto* w1_tensor = W1->MutableVar()->GetMutable<framework::LoDTensor>();
+    w1_tensor->Resize(framework::make_ddim(w1_dims));
+    auto* mutable_w1 = w1_tensor->mutable_data<float>(place);
+    paddle::memory::Copy(place, mutable_w1, place, w1_src_data.data(),
+                         sizeof(float) * w1_src_data.size());
+
+    auto* w2_tensor = W2->MutableVar()->GetMutable<framework::LoDTensor>();
+    w2_tensor->Resize(framework::make_ddim(w2_dims));
+    auto* mutable_w2 = w2_tensor->mutable_data<float>(place);
+    paddle::memory::Copy(place, mutable_w2, place, w2_src_data.data(),
+                         sizeof(float) * w2_src_data.size());
+
+    if (mode == "Accuracy") {
+      benchmark_fluid_mlp(X, W1, W2, platform::Place(place),
+                          true /* accuracy_check */);
+
+    } else if (mode == "Performance") {
+      auto t_start = std::chrono::high_resolution_clock::now();
+      ProfilerStart("fluid_matmul_cpu.out");
+
+      benchmark_fluid_mlp(X, W1, W2, platform::Place(place));
+
+      ProfilerStop();
+      auto t_end = std::chrono::high_resolution_clock::now();
+      double elapsed_time_ms =
+          std::chrono::duration<double, std::milli>(t_end - t_start).count();
+
+      std::cout << "Duration: " << elapsed_time_ms << " ms" << std::endl;
+
+    } else {
+      PADDLE_THROW(paddle::platform::errors::Fatal("Unknown benchmark mode"));
+    }
+  }
+}
+
 }  // namespace imperative
 }  // namespace paddle
 
 USE_OP(scale);
 USE_OP(matmul_v2);
+USE_OP(reduce_sum);

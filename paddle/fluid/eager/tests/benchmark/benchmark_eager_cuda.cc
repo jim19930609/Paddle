@@ -31,7 +31,7 @@
 // TODO(jiabin): remove nolint here!!!
 using namespace egr;  // NOLINT
 
-TEST(Benchmark, EagerScalePerformance) {
+TEST(Benchmark, EagerScaleCUDA) {
   egr::InitEnv(paddle::platform::CUDAPlace());
 
   for (const std::string& mode : {"Accuracy", "WarmUp", "Performance"}) {
@@ -65,7 +65,7 @@ TEST(Benchmark, EagerScalePerformance) {
   }
 }
 
-TEST(Benchmark, EagerIntermediateMatmulPerformance) {
+TEST(Benchmark, EagerIntermediateMatmulCUDA) {
   paddle::platform::CUDAPlace place;
   egr::InitEnv(place);
 
@@ -97,6 +97,57 @@ TEST(Benchmark, EagerIntermediateMatmulPerformance) {
       ProfilerStart("eager_intermediate_matmul_cuda.out");
 
       benchmark_eager_intermediate_matmul(X, Y);
+
+      ProfilerStop();
+      auto t_end = std::chrono::high_resolution_clock::now();
+      double elapsed_time_ms =
+          std::chrono::duration<double, std::milli>(t_end - t_start).count();
+      std::cout << "Duration: " << elapsed_time_ms << " ms" << std::endl;
+
+    } else {
+      PADDLE_THROW(paddle::platform::errors::Fatal("Unknown benchmark mode"));
+    }
+  }
+}
+
+TEST(Benchmark, EagerIntermediateMLPCUDA) {
+  paddle::platform::CUDAPlace place;
+  egr::InitEnv(place);
+
+  auto tracer = std::make_shared<paddle::imperative::Tracer>();
+  tracer->SetExpectedPlace(place);
+  paddle::imperative::SetCurrentTracer(tracer);
+
+  for (const std::string& mode : {"Accuracy", "WarmUp", "Performance"}) {
+    paddle::framework::DDim ddimX = paddle::framework::make_ddim({4, 16});
+    pt::Tensor X = EagerUtils::CreateTensorWithValue(
+        ddimX, pt::Backend::kCUDA, pt::DataType::kFLOAT32,
+        pt::DataLayout::kNCHW, 1.0, true);
+    RetainGradForTensor(X);
+
+    paddle::framework::DDim ddimW1 = paddle::framework::make_ddim({16, 32});
+    pt::Tensor W1 = EagerUtils::CreateTensorWithValue(
+        ddimW1, pt::Backend::kCUDA, pt::DataType::kFLOAT32,
+        pt::DataLayout::kNCHW, 2.0, true);
+    RetainGradForTensor(W1);
+
+    paddle::framework::DDim ddimW2 = paddle::framework::make_ddim({32, 64});
+    pt::Tensor W2 = EagerUtils::CreateTensorWithValue(
+        ddimW2, pt::Backend::kCUDA, pt::DataType::kFLOAT32,
+        pt::DataLayout::kNCHW, 3.0, true);
+    RetainGradForTensor(W2);
+
+    if (mode == "Accuracy") {
+      benchmark_eager_intermediate_mlp(X, W1, W2, true /* accuracy_check */);
+
+    } else if (mode == "WarmUp") {
+      benchmark_eager_intermediate_mlp(X, W1, W2);
+
+    } else if (mode == "Performance") {
+      auto t_start = std::chrono::high_resolution_clock::now();
+      ProfilerStart("eager_intermediate_matmul_mlp.out");
+
+      benchmark_eager_intermediate_mlp(X, W1, W2);
 
       ProfilerStop();
       auto t_end = std::chrono::high_resolution_clock::now();
