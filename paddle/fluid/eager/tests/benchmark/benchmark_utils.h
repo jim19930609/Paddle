@@ -16,20 +16,22 @@
 
 #include "paddle/fluid/imperative/layer.h"
 #include "paddle/tcmpt/api/all.h"
+#include "paddle/tcmpt/hapi/all.h"
 
 namespace egr {
 
 /* ---- Eager Scale ---- */
-void benchmark_eager_scale(const pt::Tensor& tensor,
+void benchmark_eager_scale(const paddle::experimental::Tensor& tensor,
                            bool accuracy_check = false);
 
 /* ---- Eager MatMul ---- */
-void benchmark_eager_intermediate_matmul(const pt::Tensor& X,
-                                         const pt::Tensor& Y,
+void benchmark_eager_intermediate_matmul(const paddle::experimental::Tensor& X,
+                                         const paddle::experimental::Tensor& Y,
                                          bool accuracy_check = false);
 
-void benchmark_eager_intermediate_mlp(const pt::Tensor& X, const pt::Tensor& W1,
-                                      const pt::Tensor& W2,
+void benchmark_eager_intermediate_mlp(const paddle::experimental::Tensor& X,
+                                      const paddle::experimental::Tensor& W1,
+                                      const paddle::experimental::Tensor& W2,
                                       bool accuracy_check = false);
 
 }  // namespace egr
