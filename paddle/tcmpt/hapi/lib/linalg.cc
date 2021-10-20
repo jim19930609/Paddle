@@ -69,5 +69,52 @@ Tensor dot(const Tensor& x, const Tensor& y) {
   return out;
 }
 
+Tensor matmul(const Tensor& x,
+              const Tensor& y,
+              bool transpose_x,
+              bool transpose_y) {
+  // 1. Get kernel signature and kernel
+  auto kernel_signature = ParseKernelNameAndKeyByArgs("matmul", x);
+  VLOG(1) << kernel_signature.first;
+  VLOG(1) << kernel_signature.second;
+  VLOG(1) << pt::KernelFactory::Instance();
+
+  auto kernel = pt::KernelFactory::Instance().SelectKernelOrThrowError(
+      kernel_signature.first, kernel_signature.second);
+  VLOG(1) << kernel;
+
+  // 2. Get Device Context
+  auto* dev_ctx = GetDeviceContextByBackend(kernel_signature.second.backend());
+  auto kernel_context = pt::KernelContext(*dev_ctx);
+
+  // 3. Auto data transform
+  auto dense_x = std::dynamic_pointer_cast<pt::DenseTensor>(x.impl());
+  kernel_context.EmplaceBackInput(dense_x);
+  auto dense_y = std::dynamic_pointer_cast<pt::DenseTensor>(y.impl());
+  kernel_context.EmplaceBackInput(dense_y);
+
+  kernel_context.EmplaceBackAttr(transpose_x);
+  kernel_context.EmplaceBackAttr(transpose_y);
+  // TODO(chenweihang): add transform impl
+
+  // 4. InferShape
+  // TODO(chenweihang): how to auto selected infershape?
+  auto out_meta = MatmulInferShape(
+      dense_x->meta(), dense_y->meta(), transpose_x, transpose_y);
+
+  // 5. Prepare outputs
+  Tensor out;
+  // TODO(chenweihang): deal with multiple outputs
+  auto dense_out =
+      std::make_shared<pt::DenseTensor>(out_meta, pt::TensorStatus());
+  kernel_context.EmplaceBackOutput(dense_out);
+  out.set_impl(dense_out);
+
+  // 6. Call kernel
+  kernel(&kernel_context);
+
+  return out;
+}
+
 }  // namespace experimental
 }  // namespace paddle

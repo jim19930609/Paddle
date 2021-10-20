@@ -5,3 +5,5 @@ cc_test(test_dot_api SRCS test_dot_api.cc DEPS linalg_api)
 cc_test(test_fill_api SRCS test_fill_api.cc DEPS creation_api)
 cc_test(test_copy_api SRCS test_copy_api.cc DEPS utils_cpu)
 cc_test(test_flatten_api SRCS test_flatten_api.cc DEPS utils_cpu manipulation_api)
+
+cc_test(test_matmul_api SRCS test_matmul_api.cc DEPS linalg_api)
