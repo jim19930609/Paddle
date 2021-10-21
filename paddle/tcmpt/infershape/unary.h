@@ -34,6 +34,12 @@ TensorMeta UnchangedInferShape(const TensorMeta& x_meta);
 
 TensorMeta ReductionInferShape(const TensorMeta& x_meta);
 
+TensorMeta GenericReductionInferShape(const TensorMeta& x_meta,
+                                      bool reduce_all,
+                                      const std::vector<int>& dim,
+                                      bool keep_dim,
+                                      int out_dtype);
+
 TensorMeta FlattenInferShape(const TensorMeta& x_meta,
                              int start_axis,
                              int stop_axis);

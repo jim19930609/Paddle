@@ -19,6 +19,7 @@ limitations under the License. */
 
 #include "paddle/tcmpt/core/dense_tensor.h"
 #include "paddle/tcmpt/core/kernel_registry.h"
+#include "paddle/tcmpt/kernels/cuda/utils.h"
 
 PT_DECLARE_MODULE(LinalgCPU);
 
@@ -29,25 +30,25 @@ PT_DECLARE_MODULE(LinalgCUDA);
 namespace framework = paddle::framework;
 using DDim = paddle::framework::DDim;
 
-TEST(API, matmul) {
+TEST(API, matmul_cpu) {
   // 1. create tensor
-  auto dense_x = std::make_shared<pt::DenseTensor>(
-      pt::TensorMeta(framework::make_ddim({3, 3}),
-                     pt::Backend::kCPU,
-                     pt::DataType::kFLOAT32,
-                     pt::DataLayout::kNCHW),
-      pt::TensorStatus());
+  pt::TensorMeta x_meta = pt::TensorMeta(framework::make_ddim({3, 3}),
+                                         pt::Backend::kCPU,
+                                         pt::DataType::kFLOAT32,
+                                         pt::DataLayout::kNCHW);
+
+  auto dense_x = std::make_shared<pt::DenseTensor>(x_meta, pt::TensorStatus());
   auto* dense_x_data = dense_x->mutable_data<float>();
 
-  auto dense_y = std::make_shared<pt::DenseTensor>(
-      pt::TensorMeta(framework::make_ddim({3, 3}),
-                     pt::Backend::kCPU,
-                     pt::DataType::kFLOAT32,
-                     pt::DataLayout::kNCHW),
-      pt::TensorStatus());
+  pt::TensorMeta y_meta = pt::TensorMeta(framework::make_ddim({3, 3}),
+                                         pt::Backend::kCPU,
+                                         pt::DataType::kFLOAT32,
+                                         pt::DataLayout::kNCHW);
+
+  auto dense_y = std::make_shared<pt::DenseTensor>(y_meta, pt::TensorStatus());
   auto* dense_y_data = dense_y->mutable_data<float>();
 
-  for (size_t i = 0; i < 12; ++i) {
+  for (size_t i = 0; i < 9; ++i) {
     dense_x_data[i] = 1.0;
     dense_y_data[i] = 2.0;
   }
@@ -64,7 +65,6 @@ TEST(API, matmul) {
   ASSERT_EQ(out.shape()[0], 3);
   ASSERT_EQ(out.shape()[1], 3);
   ASSERT_EQ(out.numel(), 9);
-  ASSERT_EQ(out.is_cpu(), true);
   ASSERT_EQ(out.type(), pt::DataType::kFLOAT32);
   ASSERT_EQ(out.layout(), pt::DataLayout::kNCHW);
   ASSERT_EQ(out.initialized(), true);
@@ -73,5 +73,80 @@ TEST(API, matmul) {
 
   for (size_t i = 0; i < 9; i++) {
     ASSERT_NEAR(sum[i], dense_out->data<float>()[i], 1e-6f);
+  }
+}
+
+TEST(API, matmul_cuda) {
+  // Prepare CPU Dense Tensor
+  auto& pool = paddle::platform::DeviceContextPool::Instance();
+  pt::TensorMeta ref_x_meta = pt::TensorMeta(framework::make_ddim({3, 3}),
+                                             pt::Backend::kCPU,
+                                             pt::DataType::kFLOAT32,
+                                             pt::DataLayout::kNCHW);
+
+  auto ref_x =
+      std::make_shared<pt::DenseTensor>(ref_x_meta, pt::TensorStatus());
+  auto* ref_x_data = ref_x->mutable_data<float>();
+
+  pt::TensorMeta ref_y_meta = pt::TensorMeta(framework::make_ddim({3, 3}),
+                                             pt::Backend::kCPU,
+                                             pt::DataType::kFLOAT32,
+                                             pt::DataLayout::kNCHW);
+
+  auto ref_y =
+      std::make_shared<pt::DenseTensor>(ref_y_meta, pt::TensorStatus());
+  auto* ref_y_data = ref_y->mutable_data<float>();
+
+  for (size_t i = 0; i < 9; ++i) {
+    ref_x_data[i] = 1.0;
+    ref_y_data[i] = 2.0;
+  }
+  std::vector<float> sum(9, 6.0);
+
+  // 1. create tensor
+  pt::TensorMeta x_meta = pt::TensorMeta(framework::make_ddim({3, 3}),
+                                         pt::Backend::kCUDA,
+                                         pt::DataType::kFLOAT32,
+                                         pt::DataLayout::kNCHW);
+  auto dense_x = std::make_shared<pt::DenseTensor>(x_meta, pt::TensorStatus());
+  pt::TensorMeta y_meta = pt::TensorMeta(framework::make_ddim({3, 3}),
+                                         pt::Backend::kCUDA,
+                                         pt::DataType::kFLOAT32,
+                                         pt::DataLayout::kNCHW);
+  auto dense_y = std::make_shared<pt::DenseTensor>(y_meta, pt::TensorStatus());
+
+  auto place = paddle::platform::CUDAPlace();
+  auto* dev_ctx = pool.GetByPlace(place);
+
+  pt::Copy(*dev_ctx, *ref_x.get(), dense_x.get());
+  pt::Copy(*dev_ctx, *ref_y.get(), dense_y.get());
+
+  paddle::experimental::Tensor x(dense_x);
+  paddle::experimental::Tensor y(dense_y);
+
+  // 2. test API
+  auto out = paddle::experimental::matmul(x, y, false, false);
+
+  // 3. check result
+  ASSERT_EQ(out.shape().size(), 2);
+  ASSERT_EQ(out.shape()[0], 3);
+  ASSERT_EQ(out.shape()[1], 3);
+  ASSERT_EQ(out.numel(), 9);
+  ASSERT_EQ(out.type(), pt::DataType::kFLOAT32);
+  ASSERT_EQ(out.layout(), pt::DataLayout::kNCHW);
+  ASSERT_EQ(out.initialized(), true);
+
+  auto dense_out = std::dynamic_pointer_cast<pt::DenseTensor>(out.impl());
+
+  pt::TensorMeta out_meta = pt::TensorMeta(out.shape(),
+                                           pt::Backend::kCPU,
+                                           pt::DataType::kFLOAT32,
+                                           pt::DataLayout::kNCHW);
+  auto ref_out =
+      std::make_shared<pt::DenseTensor>(out_meta, pt::TensorStatus());
+  pt::Copy(*dev_ctx, *dense_out.get(), ref_out.get());
+
+  for (size_t i = 0; i < 9; i++) {
+    ASSERT_NEAR(sum[i], ref_out->data<float>()[i], 1e-6f);
   }
 }
