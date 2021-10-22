@@ -78,7 +78,6 @@ TEST(API, matmul_cpu) {
 
 TEST(API, matmul_cuda) {
   // Prepare CPU Dense Tensor
-  auto& pool = paddle::platform::DeviceContextPool::Instance();
   pt::TensorMeta ref_x_meta = pt::TensorMeta(framework::make_ddim({3, 3}),
                                              pt::Backend::kCPU,
                                              pt::DataType::kFLOAT32,
@@ -115,6 +114,7 @@ TEST(API, matmul_cuda) {
                                          pt::DataLayout::kNCHW);
   auto dense_y = std::make_shared<pt::DenseTensor>(y_meta, pt::TensorStatus());
 
+  auto& pool = paddle::platform::DeviceContextPool::Instance();
   auto place = paddle::platform::CUDAPlace();
   auto* dev_ctx = pool.GetByPlace(place);
 
