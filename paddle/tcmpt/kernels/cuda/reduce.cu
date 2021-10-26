@@ -21,30 +21,10 @@
 #include "paddle/fluid/operators/reduce_ops/reduce_op.cu.h"
 #include "paddle/fluid/platform/complex.h"
 
+#include "paddle/tcmpt/kernels/common/math/reduce_function.h"
+#include "paddle/tcmpt/kernels/common/math/transform_function.h"
+
 namespace pt {
-
-struct Transform {
-  template <typename InputIter, typename OutputIter, typename UnaryOperation>
-  void operator()(const CUDAContext& dev_ctx,
-                  InputIter first,
-                  InputIter last,
-                  OutputIter result,
-                  UnaryOperation op) {
-    cudaStream_t stream = dev_ctx.stream();
-    thrust::transform(
-        thrust::cuda::par.on(stream),
-        paddle::platform::details::CastToCUDATransformIterator(first),
-        paddle::platform::details::CastToCUDATransformIterator(last),
-        paddle::platform::details::CastToCUDATransformIterator(result),
-        op);
-  }
-};
-
-/* --------- Functors --------- */
-template <typename InT, typename OutT>
-struct CastOpTransformFunctor {
-  HOSTDEVICE OutT operator()(InT in) const { return static_cast<OutT>(in); }
-};
 
 template <typename Tx, typename Ty = Tx>
 struct IdentityFunctor {
@@ -57,6 +37,7 @@ struct IdentityFunctor {
   }
 };
 
+/* --------- Functors --------- */
 template <typename Tx, typename Ty = Tx>
 struct CustomSum {
   using Transformer = IdentityFunctor<Tx, Ty>;
@@ -68,35 +49,13 @@ struct CustomSum {
   }
 };
 
-template <typename DeviceContext, typename InT>
-struct CastOpFunctor {
-  const DeviceContext& ctx_;
-  const DenseTensor& in_;
-  DenseTensor* out_;
-  CastOpFunctor(const DenseTensor& in,
-                DenseTensor* out,
-                const DeviceContext& ctx)
-      : in_(in), out_(out), ctx_(ctx) {}
-
-  template <typename OutT>
-  void apply() const {
-    auto* in_begin = in_.data<InT>();
-    auto numel = in_.numel();
-    auto* in_end = in_begin + numel;
-    auto* out_begin = out_->mutable_data<OutT>();
-    Transform trans;
-    trans(
-        ctx_, in_begin, in_end, out_begin, CastOpTransformFunctor<InT, OutT>());
-  }
-};
-
 template <typename Tx,
           typename Ty,
           template <typename, typename> class ReduceOp>
-static void TensorReduceFunctorImpl(const CUDAContext& dev_ctx,
-                                    const DenseTensor& x,
-                                    DenseTensor* y,
-                                    std::vector<int> origin_reduce_dims) {
+void TensorReduceFunctorImpl(const CUDAContext& dev_ctx,
+                             const DenseTensor& x,
+                             DenseTensor* y,
+                             std::vector<int> origin_reduce_dims) {
   cudaStream_t stream = dev_ctx.stream();
 
   auto x_dim = paddle::framework::vectorize<int>(x.dims());
@@ -118,7 +77,7 @@ static void TensorReduceFunctorImpl(const CUDAContext& dev_ctx,
     } else {
       paddle::framework::VisitDataType(
           static_cast<paddle::framework::proto::VarType::Type>(y->type()),
-          CastOpFunctor<CUDAContext, Tx>(x, y, dev_ctx));
+          math::CastOpFunctor<CUDAContext, Tx>(x, y, dev_ctx));
     }
     return;
   }
@@ -214,9 +173,9 @@ static void TensorReduceFunctorImpl(const CUDAContext& dev_ctx,
       x_data, y_data, reducer, reducer.initial(), stream, config);
 }
 
-static inline std::vector<int> GetReduceDim(const std::vector<int>& dims,
-                                            int dim_size,
-                                            bool reduce_all) {
+static std::vector<int> GetReduceDim(const std::vector<int>& dims,
+                                     int dim_size,
+                                     bool reduce_all) {
   std::vector<int> reduce_dims;
   if (reduce_all) {
     reduce_dims.resize(dim_size);
@@ -258,13 +217,13 @@ struct TensorReduceFunc {
 };
 
 template <typename T, template <typename, typename> class ReduceOp>
-static void ReduceSumCudaKernel(const CUDAContext& dev_ctx,
-                                const DenseTensor& x,
-                                bool reduce_all,
-                                const std::vector<int>& dim,
-                                bool keep_dim,
-                                int out_dtype,
-                                DenseTensor* out) {
+void ReduceSumCudaKernel(const CUDAContext& dev_ctx,
+                         const DenseTensor& x,
+                         bool reduce_all,
+                         const std::vector<int>& dim,
+                         bool keep_dim,
+                         int out_dtype,
+                         DenseTensor* out) {
   std::vector<int> reduce_dims = GetReduceDim(dim, x.dims().size(), reduce_all);
 
   if (out_dtype >= 0) {

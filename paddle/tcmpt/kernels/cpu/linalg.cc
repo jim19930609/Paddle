@@ -20,7 +20,7 @@
 #include "paddle/fluid/framework/eigen.h"
 // #include "paddle/fluid/operators/math/blas.h"
 #include "paddle/fluid/platform/complex.h"
-#include "paddle/tcmpt/kernels/common/math/matmul_funtion.h"
+#include "paddle/tcmpt/kernels/common/math/matmul_function.h"
 
 namespace pt {
 

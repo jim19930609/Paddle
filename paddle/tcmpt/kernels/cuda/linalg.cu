@@ -16,7 +16,7 @@
 
 #include "paddle/tcmpt/core/kernel_registry.h"
 #include "paddle/tcmpt/kernels/common/eigen/dot.h"
-#include "paddle/tcmpt/kernels/common/math/matmul_funtion.h"
+#include "paddle/tcmpt/kernels/common/math/matmul_function.h"
 
 // See Note [ Why still include the fluid headers? ]
 #include "paddle/fluid/platform/complex.h"
