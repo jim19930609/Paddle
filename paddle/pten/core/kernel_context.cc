@@ -12,6 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/tcmpt/core/kernel_context.h"
+#include "paddle/pten/core/kernel_context.h"
 
-namespace pt {}  // namespace pt
+namespace pten {}  // namespace pten

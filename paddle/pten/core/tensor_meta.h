@@ -16,9 +16,9 @@ limitations under the License. */
 
 #include <vector>
 
-#include "paddle/tcmpt/core/backend.h"
-#include "paddle/tcmpt/core/dtype.h"
-#include "paddle/tcmpt/core/layout.h"
+#include "paddle/pten/common/backend.h"
+#include "paddle/pten/common/data_type.h"
+#include "paddle/pten/common/layout.h"
 
 // See Note [ Why still include the fluid headers? ]
 #include "paddle/fluid/framework/ddim.h"
@@ -26,7 +26,7 @@ limitations under the License. */
 // used on CUDA device? Can we use small_vector here?
 // #include "paddle/fluid/framework/mixed_vector.h"
 
-namespace pt {
+namespace pten {
 
 // template <typename T>
 // using Vector = paddle::framework::Vector<T>;
@@ -62,7 +62,7 @@ using DDim = paddle::framework::DDim;
  * and functions for setting data members, can not provide other functions.
  */
 struct TensorMeta {
-  TensorMeta() = delete;
+  TensorMeta() = default;
   TensorMeta& operator=(const TensorMeta&) = delete;
   TensorMeta& operator=(TensorMeta&&) = delete;
 
@@ -78,14 +78,11 @@ struct TensorMeta {
         offset(meta.offset),
         lod(meta.lod) {}
 
-  // Bad constructor, may introduce bug
-  // explicit TensorMeta(DDim dims) : dims(dims) {}
-
   // Compatible Contructor
   TensorMeta(const DDim& dims,
              Backend backend,
              DataType type,
-             DataLayout layout = DataLayout::kNCHW,
+             DataLayout layout = DataLayout::NCHW,
              size_t offset = 0UL,
              const LoD& lod = {})
       : dims(dims),
@@ -95,7 +92,7 @@ struct TensorMeta {
         offset(offset),
         lod(lod) {
     int64_t init_numel = paddle::framework::product(dims);
-    if (init_numel > 0) {
+    if (init_numel >= 0) {
       numel = init_numel;
     }
   }
@@ -104,9 +101,9 @@ struct TensorMeta {
 
   DDim dims;
 
-  Backend backend{Backend::kCPU};
-  DataType type{DataType::kFLOAT32};
-  DataLayout layout{DataLayout::kNCHW};
+  Backend backend{Backend::CPU};
+  DataType type{DataType::FLOAT32};
+  DataLayout layout{DataLayout::NCHW};
 
   /**
    * [ Why not calculate numel based on dims? ]
@@ -141,4 +138,4 @@ struct TensorMeta {
   LoD lod;
 };
 
-}  // namespace pt
+}  // namespace pten

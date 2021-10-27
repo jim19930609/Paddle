@@ -14,12 +14,12 @@
 
 #pragma once
 
-#include "paddle/tcmpt/core/dense_tensor.h"
+#include "paddle/pten/core/dense_tensor.h"
 
 // See Note [ Why still include the fluid headers? ]
 #include "paddle/fluid/platform/device_context.h"
 
-namespace pt {
+namespace pten {
 
 using CPUContext = paddle::platform::CPUDeviceContext;
 
@@ -37,4 +37,4 @@ void matmul(const CPUContext& dev_ctx,
             bool transpose_y,
             DenseTensor* out);
 
-}  // namespace pt
+}  // namespace pten

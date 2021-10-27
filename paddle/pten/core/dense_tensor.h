@@ -16,9 +16,9 @@ limitations under the License. */
 
 #include <memory>
 
-#include "paddle/tcmpt/core/tensor_interface.h"
-#include "paddle/tcmpt/core/tensor_meta.h"
-#include "paddle/tcmpt/core/tensor_status.h"
+#include "paddle/pten/core/tensor_base.h"
+#include "paddle/pten/core/tensor_meta.h"
+#include "paddle/pten/core/tensor_status.h"
 
 namespace paddle {
 namespace memory {
@@ -28,11 +28,9 @@ class Allocation;
 }
 }
 
-namespace pt {
+namespace pten {
 
-// TODO(chenweihang): Allocation still link to framework, Redesign and
-// decoupled Allocation and Allocator?
-using Allocation = paddle::memory::allocation::Allocation;
+using DataType = paddle::experimental::DataType;
 
 /**
  * The implementation of general Tensor (For CPU, CUDA, HIP, etc.), similar
@@ -47,9 +45,9 @@ using Allocation = paddle::memory::allocation::Allocation;
  *
  * If the memory layout is different, it cannot be described based on the
  * general Allocation, and it needs to be directly inherited from
- * TensorInterface.
+ * TensorBase.
  */
-class DenseTensor : public TensorInterface {
+class DenseTensor : public TensorBase {
  public:
   // Not allowed to initialize a tensor without descriptive metadata
   DenseTensor() = delete;
@@ -71,25 +69,28 @@ class DenseTensor : public TensorInterface {
   DenseTensor(TensorMeta&& meta, TensorStatus&& status)
       : meta_(std::move(meta)), status_(std::move(status)) {}
 
-  ~DenseTensor() override {}
-
   int64_t numel() const override { return meta_.numel; }
 
-  DDim dims() const override { return meta_.dims; }
+  const paddle::framework::DDim& dims() const override { return meta_.dims; }
 
-  DataType type() const override { return meta_.type; }
+  DataType data_type() const override { return meta_.type; }
 
   DataLayout layout() const override { return meta_.layout; }
 
-  Place place() const override;
+  const paddle::platform::Place& place() const override;
 
   Backend backend() const override { return meta_.backend; }
+
+  bool valid() const override { return allocation_ != nullptr; }
 
   bool initialized() const override { return allocation_ != nullptr; }
 
   /* member methods */
 
-  const std::shared_ptr<Allocation>& allocation() const { return allocation_; }
+  const std::shared_ptr<paddle::memory::allocation::Allocation>& allocation()
+      const {
+    return allocation_;
+  }
 
   const TensorMeta& meta() const { return meta_; }
 
@@ -128,9 +129,10 @@ class DenseTensor : public TensorInterface {
 
   void Resize(const DDim& dims) { meta_.dims = dims; }
 
-  void ShareAllocation(const std::shared_ptr<Allocation>& allocation);
+  void ShareAllocation(const std::shared_ptr<
+                       paddle::memory::allocation::Allocation>& allocation);
 
-  Place GetPlaceByBackend() const;
+  paddle::platform::Place GetPlaceByBackend() const;
 
   size_t MemorySize() const;
 
@@ -138,11 +140,11 @@ class DenseTensor : public TensorInterface {
 
  private:
   // The actual Tensor storage holder
-  std::shared_ptr<Allocation> allocation_;
+  std::shared_ptr<paddle::memory::allocation::Allocation> allocation_;
   // The Tensor meta data
   TensorMeta meta_;
   // The Tensor status data
   TensorStatus status_;
 };
 
-}  // namespace pt
+}  // namespace pten

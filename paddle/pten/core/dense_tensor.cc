@@ -12,8 +12,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "paddle/tcmpt/core/dense_tensor.h"
-#include "paddle/tcmpt/core/convert_utils.h"
+#include "paddle/pten/core/dense_tensor.h"
+#include "paddle/pten/core/convert_utils.h"
 
 // See Note [ Why still include the fluid headers? ]
 #include "paddle/fluid/framework/data_type.h"
@@ -22,7 +22,7 @@ limitations under the License. */
 #include "paddle/fluid/platform/gpu_info.h"
 #include "paddle/fluid/platform/place.h"
 
-namespace pt {
+namespace pten {
 
 using CPUPlace = paddle::platform::CPUPlace;
 using CUDAPlace = paddle::platform::CUDAPlace;
@@ -31,7 +31,7 @@ using XPUPlace = paddle::platform::XPUPlace;
 using NPUPlace = paddle::platform::NPUPlace;
 using NPUPinnedPlace = paddle::platform::NPUPinnedPlace;
 
-Place DenseTensor::place() const {
+const paddle::platform::Place& DenseTensor::place() const {
   PADDLE_ENFORCE_NOT_NULL(
       allocation_,
       paddle::platform::errors::PreconditionNotMet(
@@ -43,7 +43,7 @@ Place DenseTensor::place() const {
 // Inner methods
 
 void DenseTensor::ShareAllocation(
-    const std::shared_ptr<Allocation>& allocation) {
+    const std::shared_ptr<paddle::memory::allocation::Allocation>& allocation) {
   // This operation can be very slow!
   // std::shared_ptr reference count is atomic. increasing or decreasing
   // the reference count requires atomic increment or decrement.
@@ -52,27 +52,13 @@ void DenseTensor::ShareAllocation(
 }
 
 // TODO(chenweihang): Add other place branchs
-Place DenseTensor::GetPlaceByBackend() const {
+paddle::platform::Place DenseTensor::GetPlaceByBackend() const {
   switch (meta_.backend) {
-    case Backend::kCPU:
+    case Backend::CPU:
       return CPUPlace();
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
-    case Backend::kCUDA:
+    case Backend::CUDA:
       return CUDAPlace(paddle::platform::GetCurrentDeviceId());
-    case Backend::kCUDAPinned:
-      return CUDAPinnedPlace();
-#endif
-#ifdef PADDLE_WITH_XPU
-    case Backend::kXPU:
-      // TODO(chenweihang): add device id
-      return XPUPlace();
-#endif
-#ifdef PADDLE_WITH_NPU
-    case Backend::kNPU:
-      // TODO(chenweihang): add device id
-      return NPUPlace();
-    case Backend::kNPUPinned:
-      return NPUPinnedPlace();
 #endif
     default:
       PADDLE_THROW(paddle::platform::errors::Unimplemented(
@@ -137,4 +123,4 @@ void* DenseTensor::mutable_data() {
       reinterpret_cast<uintptr_t>(allocation_->ptr()) + meta_.offset);
 }
 
-}  // namespace pt
+}  // namespace pten

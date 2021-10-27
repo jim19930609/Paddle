@@ -15,9 +15,9 @@ limitations under the License. */
 #pragma once
 
 // See Note [ Why still include the fluid headers? ]
-#include "paddle/tcmpt/core/tensor_meta.h"
+#include "paddle/pten/core/tensor_meta.h"
 
-namespace pt {
+namespace pten {
 
 // Common InferShape Functions for binary operators, The format like:
 //
@@ -36,4 +36,4 @@ TensorMeta MatmulInferShape(const TensorMeta& x_meta,
                             bool trans_x,
                             bool trans_y);
 
-}  // namespace pt
+}  // namespace pten

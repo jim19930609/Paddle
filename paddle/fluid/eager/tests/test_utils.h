@@ -15,10 +15,10 @@
 #pragma once
 
 #include "paddle/fluid/eager/autograd_meta.h"
-#include "paddle/tcmpt/hapi/all.h"
-
-#include "paddle/tcmpt/core/dense_tensor.h"
-#include "paddle/tcmpt/core/tensor_meta.h"
+#include "paddle/fluid/eager/eager_tensor.h"
+#include "paddle/pten/core/dense_tensor.h"
+#include "paddle/pten/core/tensor_meta.h"
+#include "paddle/pten/hapi/all.h"
 
 #include "paddle/fluid/eager/function_api.h"
 #include "paddle/fluid/memory/memcpy.h"
@@ -28,15 +28,14 @@
 namespace egr {
 
 template <typename T>
-bool CompareGradTensorWithValue(const paddle::experimental::Tensor& target,
-                                T value) {
+bool CompareGradTensorWithValue(const egr::EagerTensor& target, T value) {
   egr::AutogradMeta* meta = egr::EagerUtils::unsafe_autograd_meta(target);
   auto grad_dense =
-      std::dynamic_pointer_cast<pt::DenseTensor>(meta->Grad().impl());
+      std::dynamic_pointer_cast<pten::DenseTensor>(meta->Grad().impl());
   T* ptr = grad_dense->mutable_data<T>();
 
   std::vector<T> host_data(grad_dense->numel());
-  if (grad_dense->backend() == pt::Backend::kCUDA) {
+  if (grad_dense->backend() == pten::Backend::CUDA) {
     paddle::platform::DeviceContextPool& pool =
         paddle::platform::DeviceContextPool::Instance();
     auto* dev_ctx = dynamic_cast<paddle::platform::CUDADeviceContext*>(
@@ -56,13 +55,12 @@ bool CompareGradTensorWithValue(const paddle::experimental::Tensor& target,
 }
 
 template <typename T>
-bool CompareTensorWithValue(const paddle::experimental::Tensor& target,
-                            T value) {
-  auto dense_t = std::dynamic_pointer_cast<pt::DenseTensor>(target.impl());
+bool CompareTensorWithValue(const egr::EagerTensor& target, T value) {
+  auto dense_t = std::dynamic_pointer_cast<pten::DenseTensor>(target.impl());
   T* ptr = dense_t->mutable_data<T>();
 
   std::vector<T> host_data(dense_t->numel());
-  if (dense_t->backend() == pt::Backend::kCUDA) {
+  if (dense_t->backend() == pten::Backend::CUDA) {
     paddle::platform::DeviceContextPool& pool =
         paddle::platform::DeviceContextPool::Instance();
     auto* dev_ctx = dynamic_cast<paddle::platform::CUDADeviceContext*>(
@@ -87,6 +85,6 @@ inline void InitEnv(paddle::platform::Place place) {
   paddle::framework::InitDevices();
 
   // Init Tracer Place
-  SetExpectedPlace(place);
+  Controller::Instance().SetExpectedPlace(place);
 }
 }  // namespace egr

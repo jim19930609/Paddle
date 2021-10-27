@@ -12,11 +12,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "paddle/tcmpt/kernels/cuda/math.h"
+#include "paddle/pten/kernels/cuda/math.h"
 
-#include "paddle/tcmpt/kernels/common/eigen/mean.h"
-#include "paddle/tcmpt/kernels/common/eigen/scale.h"
-#include "paddle/tcmpt/kernels/common/eigen/sign.h"
+#include "paddle/pten/kernels/functions/eigen/mean.h"
+#include "paddle/pten/kernels/functions/eigen/scale.h"
+#include "paddle/pten/kernels/functions/eigen/sign.h"
 
 #ifdef __NVCC__
 #include "cub/cub.cuh"
@@ -26,11 +26,12 @@ limitations under the License. */
 namespace cub = hipcub;
 #endif
 
+#include "paddle/fluid/platform/enforce.h"
 #include "paddle/fluid/platform/float16.h"
-#include "paddle/tcmpt/core/convert_utils.h"
-#include "paddle/tcmpt/core/kernel_registry.h"
+#include "paddle/pten/core/convert_utils.h"
+#include "paddle/pten/core/kernel_registry.h"
 
-namespace pt {
+namespace pten {
 
 /**
  * Util Functors
@@ -74,11 +75,11 @@ void Mean(const CUDAContext& dev_ctx, const DenseTensor& x, DenseTensor* out) {
       nullptr, temp_storage_bytes, trans_x, out_data, size_prob, stream);
   PADDLE_ENFORCE_CUDA_SUCCESS(err);
 
-  pt::DenseTensor tmp(
+  pten::DenseTensor tmp(
       TensorMeta(paddle::framework::make_ddim(
                      {static_cast<int64_t>(temp_storage_bytes)}),
-                 pt::TransToPtBackend(dev_ctx.GetPlace()),
-                 x.type(),
+                 pten::TransToPtenBackend(dev_ctx.GetPlace()),
+                 x.data_type(),
                  x.layout()),
       TensorStatus());
   auto* temp_storage = tmp.mutable_data<uint8_t>();
@@ -104,9 +105,10 @@ void ScaleHost(const CUDAContext& dev_ctx,
                float bias,
                bool bias_after_scale,
                DenseTensor* out) {
-  if (paddle::platform::is_gpu_place(scale.place())) {
-    throw std::runtime_error("scale host place error.");
-  }
+  PADDLE_ENFORCE_EQ(paddle::platform::is_gpu_place(scale.place()),
+                    false,
+                    paddle::platform::errors::InvalidArgument(
+                        "Scale argument isn't a host tensor."));
   eigen::Scale<CUDAContext, T>(dev_ctx,
                                x,
                                static_cast<float>(*scale.data<T>()),
@@ -115,18 +117,18 @@ void ScaleHost(const CUDAContext& dev_ctx,
                                out);
 }
 
-}  // namespace pt
+}  // namespace pten
 
 // TODO(chenweihang): replace by better impl
 PT_REGISTER_MODULE(MathCUDA);
 
 using float16 = paddle::platform::float16;
-PT_REGISTER_KERNEL("sign", CUDA, NCHW, pt::Sign, float, double, float16) {}
-PT_REGISTER_KERNEL("mean", CUDA, NCHW, pt::Mean, float, double, float16) {}
+PT_REGISTER_KERNEL("sign", CUDA, ANY, pten::Sign, float, double, float16) {}
+PT_REGISTER_KERNEL("mean", CUDA, ANY, pten::Mean, float, double, float16) {}
 PT_REGISTER_KERNEL("scale",
                    CUDA,
-                   NCHW,
-                   pt::Scale,
+                   ANY,
+                   pten::Scale,
                    float,
                    double,
                    float16,
@@ -137,8 +139,8 @@ PT_REGISTER_KERNEL("scale",
                    int64_t) {}
 PT_REGISTER_KERNEL("scale.host",
                    CUDA,
-                   NCHW,
-                   pt::ScaleHost,
+                   ANY,
+                   pten::ScaleHost,
                    float,
                    double,
                    float16,
@@ -147,5 +149,5 @@ PT_REGISTER_KERNEL("scale.host",
                    int16_t,
                    int,
                    int64_t) {
-  kernel->InputAt(1).SetBackend(pt::Backend::kCPU);
+  kernel->InputAt(1).SetBackend(pten::Backend::CPU);
 }

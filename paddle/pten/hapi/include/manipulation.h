@@ -14,7 +14,7 @@ limitations under the License. */
 
 #pragma once
 
-#include "paddle/tcmpt/hapi/include/tensor.h"
+#include "paddle/pten/hapi/include/tensor.h"
 
 namespace paddle {
 namespace experimental {

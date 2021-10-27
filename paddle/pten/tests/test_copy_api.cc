@@ -15,10 +15,10 @@ limitations under the License. */
 #include <gtest/gtest.h>
 #include <memory>
 
-#include "paddle/tcmpt/core/kernel_registry.h"
-#include "paddle/tcmpt/kernels/cpu/utils.h"
+#include "paddle/pten/core/kernel_registry.h"
+#include "paddle/pten/kernels/cpu/utils.h"
 
-#include "paddle/tcmpt/core/dense_tensor.h"
+#include "paddle/pten/core/dense_tensor.h"
 
 PT_DECLARE_MODULE(UtilsCPU);
 
@@ -30,20 +30,20 @@ using DDim = paddle::framework::DDim;
 // 'paddle/api',
 TEST(API, copy) {
   // 1. create tensor
-  auto dense_src = std::make_shared<pt::DenseTensor>(
-      pt::TensorMeta(framework::make_ddim({2, 3}),
-                     pt::Backend::kCPU,
-                     pt::DataType::kFLOAT32,
-                     pt::DataLayout::kNCHW),
-      pt::TensorStatus());
+  auto dense_src = std::make_shared<pten::DenseTensor>(
+      pten::TensorMeta(framework::make_ddim({2, 3}),
+                       pten::Backend::CPU,
+                       pten::DataType::FLOAT32,
+                       pten::DataLayout::NCHW),
+      pten::TensorStatus());
   auto* dense_x_data = dense_src->mutable_data<float>();
 
-  auto dense_dst = std::make_shared<pt::DenseTensor>(
-      pt::TensorMeta(framework::make_ddim({2, 3}),
-                     pt::Backend::kCPU,
-                     pt::DataType::kFLOAT32,
-                     pt::DataLayout::kNCHW),
-      pt::TensorStatus());
+  auto dense_dst = std::make_shared<pten::DenseTensor>(
+      pten::TensorMeta(framework::make_ddim({2, 3}),
+                       pten::Backend::CPU,
+                       pten::DataType::FLOAT32,
+                       pten::DataLayout::NCHW),
+      pten::TensorStatus());
 
   for (size_t i = 0; i < 2; ++i) {
     for (size_t j = 0; j < 3; ++j) {
@@ -55,7 +55,7 @@ TEST(API, copy) {
   // 2. test API
   auto& pool = paddle::platform::DeviceContextPool::Instance();
   auto* dev_ctx = pool.GetByPlace(paddle::platform::CPUPlace());
-  pt::Copy(*dev_ctx, *(dense_src.get()), dense_dst.get());
+  pten::Copy(*dev_ctx, *(dense_src.get()), dense_dst.get());
 
   // 3. check result
   for (int64_t i = 0; i < dense_src->numel(); i++) {

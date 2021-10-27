@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <memory>
 #include <utility>
+#include "paddle/fluid/eager/eager_tensor.h"
 #include "paddle/fluid/framework/data_type.h"
 #include "paddle/fluid/framework/eigen.h"
 #include "paddle/fluid/operators/math/blas.h"
@@ -25,9 +26,9 @@
 #include "paddle/fluid/platform/complex.h"
 #include "paddle/fluid/platform/device_context.h"
 #include "paddle/fluid/platform/float16.h"
-#include "paddle/tcmpt/api/all.h"
-#include "paddle/tcmpt/core/convert_utils.h"
-#include "paddle/tcmpt/hapi/all.h"
+#include "paddle/pten/api/all.h"
+#include "paddle/pten/core/convert_utils.h"
+#include "paddle/pten/hapi/all.h"
 #include "unsupported/Eigen/CXX11/Tensor"
 #ifdef PADDLE_WITH_XPU
 #include "xpu/refactor/math.h"
@@ -129,24 +130,24 @@ class TensorAddFunctor : public boost::static_visitor<> {
 };
 
 template <typename DeviceContext, typename T>
-void TensorAddImpl(const std::shared_ptr<pt::DenseTensor>& src,
-                   pt::DenseTensor* dst, const paddle::platform::Place& place) {
+void TensorAddImpl(const std::shared_ptr<pten::DenseTensor>& src,
+                   pten::DenseTensor* dst,
+                   const paddle::platform::Place& place) {
   paddle::platform::DeviceContextPool& pool =
       paddle::platform::DeviceContextPool::Instance();
   paddle::platform::DeviceContext* ctx = pool.Get(place);
   auto dev_ctx = dynamic_cast<DeviceContext*>(ctx);
   paddle::operators::math::ElementwiseAddTo<DeviceContext, T> func;
-  // pt::DenseTensor* p_src = src.get();
+  // pten::DenseTensor* p_src = src.get();
   func(dev_ctx, *(src.get()), dst);
 }
 
-void TensorAdd(const paddle::experimental::Tensor& src,
-               paddle::experimental::Tensor* dst) {
+void TensorAdd(const egr::EagerTensor& src, egr::EagerTensor* dst) {
   // TODO(jiabin): Support other tensor type later
-  std::shared_ptr<pt::DenseTensor> dst_tensor =
-      std::dynamic_pointer_cast<pt::DenseTensor>(dst->impl());
-  std::shared_ptr<pt::DenseTensor> src_tensor =
-      std::dynamic_pointer_cast<pt::DenseTensor>(src.impl());
+  std::shared_ptr<pten::DenseTensor> dst_tensor =
+      std::dynamic_pointer_cast<pten::DenseTensor>(dst->impl());
+  std::shared_ptr<pten::DenseTensor> src_tensor =
+      std::dynamic_pointer_cast<pten::DenseTensor>(src.impl());
 
   auto numel = src_tensor->numel();
 
@@ -162,11 +163,12 @@ void TensorAdd(const paddle::experimental::Tensor& src,
           "%zu and the number of elements of destination tensor is %zu.",
           numel, dst_tensor->numel()));
 
-  auto data_type = pt::TransToProtoVarType(src_tensor->type());
-  auto place = pt::TransToFluidPlace(src_tensor->backend());
+  auto data_type = pten::TransToProtoVarType(src_tensor->data_type());
+  auto place = pten::TransToFluidPlace(src_tensor->backend());
   auto pt_place = src_tensor->place();
 
-  PADDLE_ENFORCE_EQ(pt::TransToProtoVarType(dst_tensor->type()), data_type,
+  PADDLE_ENFORCE_EQ(pten::TransToProtoVarType(dst_tensor->data_type()),
+                    data_type,
                     paddle::platform::errors::PreconditionNotMet(
                         "The data type of source tensor and destination tensor "
                         "should be equal, Otherwise, the calculation results "

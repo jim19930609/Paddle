@@ -15,5 +15,5 @@ limitations under the License. */
 #pragma once
 
 // See Note: [ How do we organize the kernel directory ]
-#include "paddle/tcmpt/kernels/cpu/math.h"
-#include "paddle/tcmpt/kernels/cuda/math.h"
+#include "paddle/pten/kernels/cpu/math.h"
+#include "paddle/pten/kernels/cuda/math.h"

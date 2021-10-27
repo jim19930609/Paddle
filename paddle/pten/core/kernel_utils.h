@@ -14,16 +14,16 @@
 
 #pragma once
 
-#include "paddle/tcmpt/core/dense_tensor.h"
-#include "paddle/tcmpt/core/kernel_context.h"
-#include "paddle/tcmpt/core/kernel_def.h"
-#include "paddle/tcmpt/core/scalar.h"
+#include "paddle/pten/common/scalar.h"
+#include "paddle/pten/core/dense_tensor.h"
+#include "paddle/pten/core/kernel_context.h"
+#include "paddle/pten/core/kernel_def.h"
 
 // See Note [ Why still include the fluid headers? ]
 #include "paddle/fluid/platform/device_context.h"
 #include "paddle/fluid/platform/enforce.h"
 
-namespace pt {
+namespace pten {
 
 // TODO(shixiaowei): replaced by new DeviceContext later
 using CPUContext = paddle::platform::CPUDeviceContext;
@@ -41,7 +41,7 @@ using XPUContext = paddle::platform::XPUDeviceContext;
 #endif
 
 #define PT_KERNEL(...) \
-  ::pt::KernelImpl<decltype(&__VA_ARGS__), &__VA_ARGS__>::Compute
+  ::pten::KernelImpl<decltype(&__VA_ARGS__), &__VA_ARGS__>::Compute
 
 #define PT_SPECIALIZE_KernelCallHelper_FOR_DEVICE_CONTEXT(dev_ctx)           \
   template <typename... Tail>                                                \
@@ -163,7 +163,7 @@ struct KernelImpl<Return (*)(Args...), kernel_fn> {
   PT_SPECIALIZE_KernelCallHelper_FOR_ATTRIBUTE(int);
   PT_SPECIALIZE_KernelCallHelper_FOR_ATTRIBUTE(int64_t);
   PT_SPECIALIZE_KernelCallHelper_FOR_ATTRIBUTE(paddle::platform::float16);
-  PT_SPECIALIZE_KernelCallHelper_FOR_ATTRIBUTE(const pt::Scalar&);
+  PT_SPECIALIZE_KernelCallHelper_FOR_ATTRIBUTE(const Scalar&);
 
   /* Output Helpers */
 
@@ -185,4 +185,4 @@ struct KernelImpl<Return (*)(Args...), kernel_fn> {
   };
 };
 
-}  // namespace pt
+}  // namespace pten

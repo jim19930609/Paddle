@@ -12,12 +12,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "paddle/tcmpt/kernels/cpu/utils.h"
+#include "paddle/pten/kernels/cpu/utils.h"
 #include "paddle/fluid/memory/memcpy.h"
-#include "paddle/tcmpt/core/convert_utils.h"
-#include "paddle/tcmpt/core/dtype.h"
+#include "paddle/pten/common/data_type.h"
+#include "paddle/pten/core/convert_utils.h"
 
-namespace pt {
+namespace pten {
 
 void Copy(const CPUContext& dev_ctx, const DenseTensor& src, DenseTensor* dst) {
   auto* src_ptr = src.data();
@@ -37,8 +37,8 @@ void Copy(const CPUContext& dev_ctx, const DenseTensor& src, DenseTensor* dst) {
           << dst_place;
   dst->Resize(src.dims());
   dst->mutable_meta()->layout = src.meta().layout;
-  auto size = src.numel() *
-              paddle::framework::SizeOfType(TransToProtoVarType(src.type()));
+  auto size = src.numel() * paddle::framework::SizeOfType(
+                                TransToProtoVarType(src.data_type()));
 
   if (paddle::platform::is_cpu_place(src_place) &&
       paddle::platform::is_cpu_place(dst_place)) {
@@ -50,9 +50,9 @@ void Copy(const CPUContext& dev_ctx, const DenseTensor& src, DenseTensor* dst) {
   }
 }
 
-}  // namespace pt
+}  // namespace pten
 
 // TODO(chenweihang): replace by better impl
 PT_REGISTER_MODULE(UtilsCPU);
 
-PT_REGISTER_KERNEL_WITH_NO_TYPE("copy", CPU, Any, pt::Copy) {}
+PT_REGISTER_KERNEL_WITH_NO_TYPE("copy", CPU, ANY, pten::Copy) {}

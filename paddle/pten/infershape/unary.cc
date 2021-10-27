@@ -13,9 +13,9 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 // See Note [ Why still include the fluid headers? ]
-#include "paddle/tcmpt/infershape/unary.h"
+#include "paddle/pten/infershape/unary.h"
 
-namespace pt {
+namespace pten {
 
 TensorMeta UnchangedInferShape(const TensorMeta& x_meta) { return x_meta; }
 
@@ -153,4 +153,4 @@ TensorMeta FlattenInferShape(const TensorMeta& x_meta,
   return return_meta;
 }
 
-}  // namespace pt
+}  // namespace pten

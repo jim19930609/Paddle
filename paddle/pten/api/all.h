@@ -15,9 +15,9 @@ limitations under the License. */
 #pragma once
 
 // develop apis
-#include "paddle/tcmpt/api/include/core.h"
-#include "paddle/tcmpt/api/include/creation.h"
-#include "paddle/tcmpt/api/include/infershape.h"
-#include "paddle/tcmpt/api/include/linalg.h"
-#include "paddle/tcmpt/api/include/manipulation.h"
-#include "paddle/tcmpt/api/include/math.h"
+#include "paddle/pten/api/include/core.h"
+#include "paddle/pten/api/include/creation.h"
+#include "paddle/pten/api/include/infershape.h"
+#include "paddle/pten/api/include/linalg.h"
+#include "paddle/pten/api/include/manipulation.h"
+#include "paddle/pten/api/include/math.h"

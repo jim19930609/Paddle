@@ -13,12 +13,12 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #include "paddle/fluid/memory/memcpy.h"
-#include "paddle/tcmpt/core/convert_utils.h"
-#include "paddle/tcmpt/core/dtype.h"
-#include "paddle/tcmpt/core/kernel_registry.h"
-#include "paddle/tcmpt/kernels/cuda/utils.h"
+#include "paddle/pten/common/data_type.h"
+#include "paddle/pten/core/convert_utils.h"
+#include "paddle/pten/core/kernel_registry.h"
+#include "paddle/pten/kernels/cuda/utils.h"
 
-namespace pt {
+namespace pten {
 
 void Copy(const CUDAContext& dev_ctx,
           const DenseTensor& src,
@@ -40,8 +40,8 @@ void Copy(const CUDAContext& dev_ctx,
           << dst_place;
   dst->Resize(src.dims());
   dst->mutable_meta()->layout = src.meta().layout;
-  auto size = src.numel() *
-              paddle::framework::SizeOfType(TransToProtoVarType(src.type()));
+  auto size = src.numel() * paddle::framework::SizeOfType(
+                                TransToProtoVarType(src.data_type()));
 
   if (paddle::platform::is_cuda_pinned_place(src_place) &&  // NOLINT
       paddle::platform::is_cuda_pinned_place(dst_place)) {
@@ -215,9 +215,9 @@ void Copy(const CUDAContext& dev_ctx,
   }
 }
 
-}  // namespace pt
+}  // namespace pten
 
 // TODO(chenweihang): replace by better impl
 PT_REGISTER_MODULE(UtilsCUDA);
 
-PT_REGISTER_KERNEL_WITH_NO_TYPE("copy", CUDA, Any, pt::Copy) {}
+PT_REGISTER_KERNEL_WITH_NO_TYPE("copy", CUDA, ANY, pten::Copy) {}

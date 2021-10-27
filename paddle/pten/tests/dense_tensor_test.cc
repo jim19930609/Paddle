@@ -12,7 +12,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "paddle/tcmpt/core/dense_tensor.h"
+#include "paddle/pten/core/dense_tensor.h"
 
 #include <gtest/gtest.h>
 
@@ -20,26 +20,14 @@ namespace framework = paddle::framework;
 using DDim = paddle::framework::DDim;
 
 TEST(DenseTensor, Constructor) {
-  pt::DenseTensor tensor(pt::TensorMeta(framework::make_ddim({5, 10}),
-                                        pt::Backend::kCPU,
-                                        pt::DataType::kFLOAT32,
-                                        pt::DataLayout::kNCHW,
-                                        0UL),
-                         pt::TensorStatus());
+  pten::DenseTensor tensor(pten::TensorMeta(framework::make_ddim({5, 10}),
+                                            pten::Backend::CPU,
+                                            pten::DataType::FLOAT32,
+                                            pten::DataLayout::NCHW,
+                                            0UL),
+                           pten::TensorStatus());
   ASSERT_EQ(tensor.dims().size(), 2);
-  ASSERT_EQ(tensor.backend(), pt::Backend::kCPU);
-  ASSERT_EQ(tensor.type(), pt::DataType::kFLOAT32);
-  ASSERT_EQ(tensor.layout(), pt::DataLayout::kNCHW);
-}
-
-TEST(DenseTensor, Dims) {
-  // impl later
-}
-
-TEST(DenseTensor, Place) {
-  // impl later
-}
-
-TEST(DenseTensor, Data) {
-  // impl later
+  ASSERT_EQ(tensor.backend(), pten::Backend::CPU);
+  ASSERT_EQ(tensor.data_type(), pten::DataType::FLOAT32);
+  ASSERT_EQ(tensor.layout(), pten::DataLayout::NCHW);
 }

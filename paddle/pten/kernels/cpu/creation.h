@@ -14,12 +14,12 @@
 
 #pragma once
 
-#include "paddle/tcmpt/core/dense_tensor.h"
-#include "paddle/tcmpt/core/scalar.h"
+#include "paddle/pten/common/scalar.h"
+#include "paddle/pten/core/dense_tensor.h"
 
 #include "paddle/fluid/platform/device_context.h"
 
-namespace pt {
+namespace pten {
 
 using CPUContext = paddle::platform::CPUDeviceContext;
 
@@ -29,4 +29,4 @@ void FillAnyLike(const CPUContext& dev_ctx,
                  const Scalar& val,
                  DenseTensor* out);
 
-}  // namespace pt
+}  // namespace pten

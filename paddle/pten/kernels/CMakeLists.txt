@@ -1,4 +1,4 @@
-# tcmpt kernels for diff device
+# pten kernels for diff device
 add_subdirectory(cpu)
 if(WITH_GPU OR WITH_ROCM)
   # TODO(chenweihang): if hip can split from cuda impl, we should add hip dir

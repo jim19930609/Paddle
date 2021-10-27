@@ -15,8 +15,8 @@ limitations under the License. */
 #pragma once
 
 // user apis
-#include "paddle/tcmpt/hapi/include/creation.h"
-#include "paddle/tcmpt/hapi/include/linalg.h"
-#include "paddle/tcmpt/hapi/include/manipulation.h"
-#include "paddle/tcmpt/hapi/include/math.h"
-#include "paddle/tcmpt/hapi/include/tensor.h"
+#include "paddle/pten/hapi/include/creation.h"
+#include "paddle/pten/hapi/include/linalg.h"
+#include "paddle/pten/hapi/include/manipulation.h"
+#include "paddle/pten/hapi/include/math.h"
+#include "paddle/pten/hapi/include/tensor.h"

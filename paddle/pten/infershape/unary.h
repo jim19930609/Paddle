@@ -15,9 +15,9 @@ limitations under the License. */
 #pragma once
 
 // See Note [ Why still include the fluid headers? ]
-#include "paddle/tcmpt/core/tensor_meta.h"
+#include "paddle/pten/core/tensor_meta.h"
 
-namespace pt {
+namespace pten {
 
 // Common InferShape Functions for unary operators, The format like:
 //
@@ -44,4 +44,4 @@ TensorMeta FlattenInferShape(const TensorMeta& x_meta,
                              int start_axis,
                              int stop_axis);
 
-}  // namespace pt
+}  // namespace pten

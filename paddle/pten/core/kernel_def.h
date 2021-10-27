@@ -14,7 +14,7 @@
 
 #pragma once
 
-namespace pt {
+namespace pten {
 
 class Kernel;
 class KernelKey;
@@ -39,4 +39,4 @@ constexpr char kContainSelectedRowsSuffix[] = "sr";
 
 // For kernels with intermediate output
 constexpr char kContainMidOutputTensorSuffix[] = "mid";
-}  // namespace pt
+}  // namespace pten

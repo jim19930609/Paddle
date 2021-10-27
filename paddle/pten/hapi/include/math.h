@@ -14,11 +14,13 @@ limitations under the License. */
 
 #pragma once
 
-#include "paddle/tcmpt/hapi/include/tensor.h"
+#include "paddle/pten/hapi/include/tensor.h"
 
 namespace paddle {
 namespace experimental {
 
+// TODO(chenweihang): add scale API
+// TODO(chenweihang): move mean API into stat.h/cc
 Tensor mean(const Tensor& x);
 
 }  // namespace experimental

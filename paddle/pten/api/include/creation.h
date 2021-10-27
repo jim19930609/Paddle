@@ -14,5 +14,5 @@
 
 #pragma once
 
-#include "paddle/tcmpt/kernels/cpu/creation.h"
-#include "paddle/tcmpt/kernels/cuda/creation.h"
+#include "paddle/pten/kernels/cpu/creation.h"
+#include "paddle/pten/kernels/cuda/creation.h"

@@ -15,5 +15,5 @@
 #pragma once
 
 // See Note: [ How do we organize the kernel directory ]
-#include "paddle/tcmpt/kernels/cpu/linalg.h"
-#include "paddle/tcmpt/kernels/cuda/linalg.h"
+#include "paddle/pten/kernels/cpu/linalg.h"
+#include "paddle/pten/kernels/cuda/linalg.h"

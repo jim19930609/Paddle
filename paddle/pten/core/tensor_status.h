@@ -14,12 +14,10 @@ limitations under the License. */
 
 #pragma once
 
-#include "paddle/tcmpt/core/backend.h"
-#include "paddle/tcmpt/core/dtype.h"
-#include "paddle/tcmpt/core/layout.h"
-
-namespace pt {
-
+#include "paddle/pten/common/backend.h"
+#include "paddle/pten/common/data_type.h"
+#include "paddle/pten/common/layout.h"
+namespace pten {
 class TensorInplaceVersion {
  public:
   explicit TensorInplaceVersion(uint32_t inplace_version = 0)
@@ -61,4 +59,4 @@ struct TensorStatus {
   bool is_scalar{false};
 };
 
-}  // namespace pt
+}  // namespace pten

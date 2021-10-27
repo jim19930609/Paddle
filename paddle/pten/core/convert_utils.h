@@ -14,9 +14,9 @@ limitations under the License. */
 
 #pragma once
 
-#include "paddle/tcmpt/core/backend.h"
-#include "paddle/tcmpt/core/dtype.h"
-#include "paddle/tcmpt/core/layout.h"
+#include "paddle/pten/common/backend.h"
+#include "paddle/pten/common/data_type.h"
+#include "paddle/pten/common/layout.h"
 
 // See Note [ Why still include the fluid headers? ]
 #include "paddle/fluid/framework/data_layout.h"
@@ -25,14 +25,15 @@ limitations under the License. */
 
 // TODO(chenweihang): this file may need to be removed
 
-namespace pt {
+namespace pten {
 
-// TODO(chenweihang): Use the original var type as much as possible
-// to avoid transform, such as DataLayout, VarType
-Backend TransToPtBackend(const paddle::platform::Place& place);
-DataType TransToPtDataType(
+using DataType = paddle::experimental::DataType;
+using DataLayout = paddle::experimental::DataLayout;
+
+Backend TransToPtenBackend(const paddle::platform::Place& place);
+DataType TransToPtenDataType(
     const paddle::framework::proto::VarType::Type& dtype);
-DataLayout TransToPtLayout(const paddle::framework::DataLayout& layout);
+DataLayout TransToPtenDataLayout(const paddle::framework::DataLayout& layout);
 
 paddle::platform::Place TransToFluidPlace(const Backend& backend);
 paddle::framework::proto::VarType::Type TransToProtoVarType(
@@ -42,6 +43,6 @@ paddle::framework::DataLayout TransToFluidDataLayout(const DataLayout& layout);
 size_t DataTypeSize(DataType dtype);
 DataType String2DataType(const std::string& str);
 std::string DataType2String(DataType dtype);
-int TensorDtype2NumpyDtype(pt::DataType dtype);
+int TensorDtype2NumpyDtype(pten::DataType dtype);
 
-}  // namespace pt
+}  // namespace pten

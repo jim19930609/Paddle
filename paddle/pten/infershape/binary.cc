@@ -13,9 +13,9 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 // See Note [ Why still include the fluid headers? ]
-#include "paddle/tcmpt/infershape/binary.h"
+#include "paddle/pten/infershape/binary.h"
 
-namespace pt {
+namespace pten {
 
 TensorMeta DotInferShape(const TensorMeta& x_meta, const TensorMeta& y_meta) {
   auto x_dims = x_meta.dims;
@@ -138,4 +138,4 @@ TensorMeta MatmulInferShape(const TensorMeta& x_meta,
   return return_meta;
 }
 
-}  // namespace pt
+}  // namespace pten

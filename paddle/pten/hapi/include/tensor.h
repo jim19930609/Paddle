@@ -1,11 +1,8 @@
 /* Copyright (c) 2021 PaddlePaddle Authors. All Rights Reserved.
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
     http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,20 +14,19 @@ limitations under the License. */
 #include <functional>
 #include <memory>
 #include <utility>
-#include "glog/logging.h"
 
-#include "paddle/tcmpt/core/tensor_interface.h"
+#include "paddle/pten/core/tensor_base.h"
 
 /**
  * [ Why still include the fluid headers? ]
  *
  * We hope to organize the basic implementation of Tensor and the logic related
  * to Tensor computation into an independent library, which we call
- * [Tensor Compute Library, tcmpt], so we extract or rewrite the original
+ * [Tensor Operation Library, pten], so we extract or rewrite the original
  * Kernels.
  *
  * In the future, the training library, inference library and custom operators
- * will link to this Tensor Compute library.
+ * will link to this Tensor Operation library.
  *
  * However, if we directly split the link relation, we need to make too many
  * changes, which will affect the stability of the framework, so here we still
@@ -40,6 +36,7 @@ limitations under the License. */
  * or the corresponding components will be re-implemented.
  */
 #include "paddle/fluid/framework/ddim.h"
+#include "paddle/fluid/platform/enforce.h"
 #include "paddle/fluid/platform/place.h"
 
 namespace paddle {
@@ -55,7 +52,7 @@ class AbstractAutogradMeta {
 
 /**
  * Tensor is the API description of the basic data structure in the
- * [ Paddle "Tensor CoMPuTe (tcmpt)" Library ].
+ * [ "Paddle Tensor Operation (pten)" Library ].
  *
  * It is not limited to a simple n-dimensional array.
  * It contains a smart pointer to `TensorImpl`. The data description contained
@@ -74,7 +71,7 @@ class AbstractAutogradMeta {
  * letters and underscores.
  *
  * Note: Tensor cannot be inherited. The heterogeneous Tensor implementation
- * can be achieved by inheriting the underlying TensorInterface.
+ * can be achieved by inheriting the underlying TensorBase.
  *
  * Note: This Tensor API is suitable for training and custom operators,
  * another simple Tensor design may be required for inference.
@@ -84,49 +81,62 @@ class Tensor final {
  public:
   /* Part 1: Construction and destruction methods */
   Tensor() {}
+  explicit Tensor(const std::string& name) { name_ = name; }
   Tensor(const Tensor&) = default;
   Tensor(Tensor&&) = default;
 
   /**
    * @description: Use a TensorImpl pointer to construct a Tensor
-   * @param {shared_ptr<TensorInterface>} tensor_impl
+   * @param {shared_ptr<TensorBase>} tensor_impl
    * @return {Tensor}
    */
-  explicit Tensor(std::shared_ptr<pt::TensorInterface> tensor_impl)
+  explicit Tensor(std::shared_ptr<pten::TensorBase> tensor_impl)
       : impl_(std::move(tensor_impl)) {
-    if (impl_.get() == nullptr) {
-      throw std::runtime_error("TensorImpl with nullptr is not supported");
-    }
+    PADDLE_ENFORCE_NOT_NULL(impl_,
+                            platform::errors::InvalidArgument(
+                                "TensorImpl with nullptr is not supported"));
   }
 
-  /* Part 2: Dimension, DataType and DataLayout methods */
+  /* Part 2: Name access methods */
+  /**
+   * @description: Return the name of current Tensor.
+   * @param None
+   * @return {const std::string&}
+   */
+  const std::string& name() const { return name_; }
+  /**
+ * @description: Set the name of current Tensor.
+ * @param {const std::string& name}
+ * @return None
+ */
+  void set_name(const std::string& name) { name_ = name; }
+  /* Part 3: Dimension, DataType and DataLayout methods */
   /**
    * @description: Return the number of elements of current Tensor.
    * @param None
    * @return {int64_t}
    */
   int64_t numel() const { return impl_->numel(); }
-
   /**
    * @description: Return the shape (dimensions) of current Tensor.
    * @param None
    * @return {DDim}
    */
-  pt::DDim shape() const { return impl_->dims(); }
+  paddle::framework::DDim shape() const { return impl_->dims(); }
 
   /**
    * @description: Return the data type of current Tensor.
    * @param None
    * @return {DataType}
    */
-  pt::DataType type() const { return impl_->type(); }
+  paddle::experimental::DataType type() const { return impl_->data_type(); }
 
   /**
    * @description: Return the layout of current Tensor.
    * @param None
    * @return {DataLayout}
    */
-  pt::DataLayout layout() const { return impl_->layout(); }
+  paddle::experimental::DataLayout layout() const { return impl_->layout(); }
 
   /* Part 3: Device and Backend methods */
   /**
@@ -134,48 +144,34 @@ class Tensor final {
    * @param None
    * @return {Place}
    */
-  pt::Place place() const { return impl_->place(); }
+  paddle::platform::Place place() const { return impl_->place(); }
 
   /**
    * Backend judgment APIs, shield the concept of Backend.
    */
-  bool is_cpu() const { return impl_->backend() == pt::Backend::kCPU; }
-  bool is_cuda() const { return impl_->backend() == pt::Backend::kCUDA; }
-  bool is_hip() const;
-  bool is_xpu() const;
-  bool is_npu() const;
-  bool is_mkldnn() const;
-  bool is_cudnn() const;
-
-  bool is_selected_rows() const;
+  bool is_cpu() const { return paddle::platform::is_cpu_place(place()); }
+  bool is_cuda() const { return paddle::platform::is_gpu_place(place()); }
 
   /**
    * Backend convert APIs.
    */
   Tensor cpu() const;
   Tensor cuda() const;
-  Tensor hip() const;
-  Tensor xpu() const;
-  Tensor npu() const;
-  Tensor mkldnn() const;
-  Tensor cudnn() const;
 
   /* Part 4: Data Access methods */
   /**
    * @description: Return the implemention of current Tensor.
    * @param None
-   * @return {std::shared_ptr<TensorInterface>}
+   * @return {std::shared_ptr<TensorBase>}
    */
-  std::shared_ptr<pt::TensorInterface> impl() const { return impl_; }
+  std::shared_ptr<pten::TensorBase> impl() const { return impl_; }
 
   /**
    * @description: Set the implemention of current Tensor.
-   * @param {std::shared_ptr<TensorInterface>}
+   * @param {std::shared_ptr<TensorBase>}
    * @return None
    */
-  void set_impl(const std::shared_ptr<pt::TensorInterface>& impl) {
-    impl_ = impl;
-  }
+  void set_impl(const std::shared_ptr<pten::TensorBase>& impl) { impl_ = impl; }
 
   // TODO(chenweihang): Whether API Tensor need `data` and `mutable_data`?
 
@@ -203,13 +199,12 @@ class Tensor final {
    */
   void reset() { impl_.reset(); }
 
-  /* Part 6: Operator overloading used by eager */
+  /* Part 6: Operator overloading */
   Tensor& operator=(const Tensor& x) & {
     impl_ = x.impl_;
     autograd_meta_ = x.autograd_meta_;
     return *this;
   }
-
   Tensor& operator=(Tensor&& x) & {
     impl_ = std::move(x.impl_);
     autograd_meta_ = std::move(x.autograd_meta_);
@@ -228,7 +223,7 @@ class Tensor final {
   /* Part 8: Auto generated Tensor methods */
   // ...
 
- public:
+ private:
   /**
    * [ Why use abstract TensorImpl interface here? ]
    *
@@ -247,7 +242,7 @@ class Tensor final {
    * heterogeneous Tensor implementation, so that the API level can be unified
    * to one `Tensor`.
    */
-  std::shared_ptr<pt::TensorInterface> impl_;
+  std::shared_ptr<pten::TensorBase> impl_;
 
   /**
    * [ Why need abstract AbstractAutogradMeta here? ]
@@ -260,7 +255,13 @@ class Tensor final {
    *    information, not Tensor data description-related information.
    * 2. Kernel calculation does not require AutogradMeta.
    */
-  std::shared_ptr<AbstractAutogradMeta> autograd_meta_ = nullptr;
+  std::shared_ptr<AbstractAutogradMeta> autograd_meta_{nullptr};
+
+  /**
+   * Tensor name: used for adapt original execution mechanism and debug analysis
+   * in the development of new dygraph.
+   */
+  std::string name_;
 };
 
 }  // namespace experimental

@@ -12,16 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/tcmpt/kernels/cuda/linalg.h"
+#include "paddle/pten/kernels/cuda/linalg.h"
 
-#include "paddle/tcmpt/core/kernel_registry.h"
-#include "paddle/tcmpt/kernels/common/eigen/dot.h"
-#include "paddle/tcmpt/kernels/common/math/matmul_function.h"
+#include "paddle/pten/core/kernel_registry.h"
+#include "paddle/pten/kernels/functions/eigen/dot.h"
 
 // See Note [ Why still include the fluid headers? ]
 #include "paddle/fluid/platform/complex.h"
 
-namespace pt {
+namespace pten {
 
 template <typename T>
 void Dot(const CUDAContext& dev_ctx,
@@ -52,7 +51,7 @@ void matmul(const CUDAContext& dev_ctx,
       dev_ctx, x, y, out, transpose_x, transpose_y, false /*flag*/);
 }
 
-}  // namespace pt
+}  // namespace pten
 
 PT_REGISTER_MODULE(LinalgCUDA);
 
@@ -61,8 +60,8 @@ using complex128 = ::paddle::platform::complex<double>;
 
 PT_REGISTER_KERNEL("dot",
                    CUDA,
-                   NCHW,
-                   pt::Dot,
+                   ANY,
+                   pten::Dot,
                    float,
                    double,
                    int,

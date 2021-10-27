@@ -16,16 +16,19 @@
 
 #include <utility>
 
-#include "paddle/tcmpt/core/tensor_interface.h"
+#include "paddle/pten/core/tensor_base.h"
 #include "paddle/utils/any.h"
+#include "paddle/utils/small_vector.h"
 
 // See Note [ Why still include the fluid headers? ]
 #include "paddle/fluid/platform/device_context.h"
 #include "paddle/fluid/platform/enforce.h"
 
-namespace pt {
+namespace pten {
 
 using DeviceContext = paddle::platform::DeviceContext;
+using DataType = paddle::experimental::DataType;
+using DataLayout = paddle::experimental::DataLayout;
 
 /**
  * Note: KernelContext doesn't manage the life if DeviceContext and Tensor
@@ -38,9 +41,9 @@ class KernelContext {
  public:
   explicit KernelContext(const DeviceContext& dev_ctx) : dev_ctx_(dev_ctx) {}
   KernelContext(const DeviceContext& dev_ctx,
-                const std::vector<std::shared_ptr<TensorInterface>>& inputs,
-                const std::vector<std::shared_ptr<TensorInterface>>& outputs,
-                const std::vector<paddle::any>& attrs)
+                const paddle::SmallVector<std::shared_ptr<TensorBase>>& inputs,
+                const paddle::SmallVector<std::shared_ptr<TensorBase>>& outputs,
+                const paddle::SmallVector<paddle::any>& attrs)
       : dev_ctx_(dev_ctx), inputs_(inputs), outputs_(outputs), attrs_(attrs) {}
 
   template <typename CtxType>
@@ -48,14 +51,15 @@ class KernelContext {
     return static_cast<const CtxType&>(dev_ctx_);
   }
 
-  void EmplaceBackInput(std::shared_ptr<TensorInterface> input) {
+  void EmplaceBackInput(std::shared_ptr<TensorBase> input) {
     inputs_.emplace_back(input);
     // Record the start and end index of the input
     int index = inputs_.size();
     input_range_.emplace_back(std::pair<int, int>(index, index + 1));
   }
 
-  void EmplaceBackInputs(std::vector<std::shared_ptr<TensorInterface>> inputs) {
+  void EmplaceBackInputs(
+      const paddle::SmallVector<std::shared_ptr<TensorBase>>& inputs) {
     for (auto in : inputs) {
       inputs_.emplace_back(in);
     }
@@ -65,7 +69,7 @@ class KernelContext {
         std::pair<int, int>(index, index + inputs.size()));
   }
 
-  void EmplaceBackOutput(std::shared_ptr<TensorInterface> output) {
+  void EmplaceBackOutput(std::shared_ptr<TensorBase> output) {
     outputs_.emplace_back(output);
     // Record the start and end index of the input
     int index = outputs_.size();
@@ -73,7 +77,7 @@ class KernelContext {
   }
 
   void EmplaceBackOutputs(
-      std::vector<std::shared_ptr<TensorInterface>> outputs) {
+      const paddle::SmallVector<std::shared_ptr<TensorBase>>& outputs) {
     for (auto out : outputs) {
       outputs_.emplace_back(out);
     }
@@ -112,22 +116,20 @@ class KernelContext {
   // DeviceContext base class
   const DeviceContext& dev_ctx_;
 
-  // TODO(chenweihang): replaced by small_vector
   // TODO(chenweihang): Tensor -> Tensor*, Tensor should by managed `scope`
   // Note: can't use API Tensor here, the inference don't use this API Tensor
-  std::vector<std::shared_ptr<TensorInterface>> inputs_{};
-  std::vector<std::shared_ptr<TensorInterface>> outputs_{};
-  std::vector<paddle::any> attrs_{};
+  paddle::SmallVector<std::shared_ptr<TensorBase>> inputs_{};
+  paddle::SmallVector<std::shared_ptr<TensorBase>> outputs_{};
+  paddle::SmallVector<paddle::any> attrs_{};
 
   // Only contains input like list[Tensor] need `range`
-  // TODO(chenweihang): replaced by small_vector
-  std::vector<std::pair<int, int>> input_range_{{}};
-  std::vector<std::pair<int, int>> output_range_{{}};
+  paddle::SmallVector<std::pair<int, int>> input_range_{{}};
+  paddle::SmallVector<std::pair<int, int>> output_range_{{}};
 
   // Only static graph need `name`
   // TODO(chenweihang): replaced by paddle::string_view
-  std::vector<std::string> input_names_{{}};
-  std::vector<std::string> output_names_{{}};
+  paddle::SmallVector<std::string> input_names_{{}};
+  paddle::SmallVector<std::string> output_names_{{}};
 };
 
-}  // namespace pt
+}  // namespace pten

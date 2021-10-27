@@ -14,56 +14,49 @@
 
 #include "paddle/fluid/eager/function_api.h"
 
-#include "paddle/tcmpt/api/all.h"
-#include "paddle/tcmpt/core/dense_tensor.h"
-#include "paddle/tcmpt/hapi/all.h"
+#include "paddle/pten/api/all.h"
+#include "paddle/pten/core/dense_tensor.h"
+#include "paddle/pten/hapi/all.h"
 
 #include "paddle/fluid/memory/memcpy.h"
 #include "paddle/fluid/platform/device_context.h"
 
 namespace egr {
 
-static std::shared_ptr<paddle::platform::Place> _expected_place(nullptr);
-
-const paddle::platform::Place& GetExpectedPlace() {
-  return *_expected_place.get();
-}
-
-void SetExpectedPlace(const paddle::platform::Place& place) {
-  _expected_place = std::make_shared<paddle::platform::Place>(place);
-}
+Controller* Controller::controller_ = new Controller();
 
 template <typename DeviceContext>
-static void ScaleDeviceDispatch(const pt::DenseTensor& dense_tensor,
+static void ScaleDeviceDispatch(const pten::DenseTensor& dense_tensor,
                                 const DeviceContext& dev_ctx, float scale,
                                 float bias, bool bias_after_scale,
-                                pt::DenseTensor* dense_out) {
-  switch (dense_tensor.type()) {
-    case pt::DataType::kFLOAT64: {
-      pt::Scale<double>(dev_ctx, dense_tensor /* tensor */, scale /* scale */,
-                        bias /* bias */,
-                        bias_after_scale /* bias_after_scale */,
-                        dense_out /* out tensor */);
+                                pten::DenseTensor* dense_out) {
+  switch (dense_tensor.data_type()) {
+    case pten::DataType::FLOAT64: {
+      pten::Scale<double>(dev_ctx, dense_tensor /* tensor */, scale /* scale */,
+                          bias /* bias */,
+                          bias_after_scale /* bias_after_scale */,
+                          dense_out /* out tensor */);
       break;
     }
-    case pt::DataType::kFLOAT32: {
-      pt::Scale<float>(dev_ctx, dense_tensor /* tensor */, scale /* scale */,
-                       bias /* bias */, bias_after_scale /* bias_after_scale */,
-                       dense_out /* out tensor */);
-      break;
-    }
-    case pt::DataType::kINT64: {
-      pt::Scale<int64_t>(dev_ctx, dense_tensor /* tensor */, scale /* scale */,
+    case pten::DataType::FLOAT32: {
+      pten::Scale<float>(dev_ctx, dense_tensor /* tensor */, scale /* scale */,
                          bias /* bias */,
                          bias_after_scale /* bias_after_scale */,
                          dense_out /* out tensor */);
       break;
     }
-    case pt::DataType::kINT32: {
-      pt::Scale<int32_t>(dev_ctx, dense_tensor /* tensor */, scale /* scale */,
-                         bias /* bias */,
-                         bias_after_scale /* bias_after_scale */,
-                         dense_out /* out tensor */);
+    case pten::DataType::INT64: {
+      pten::Scale<int64_t>(dev_ctx, dense_tensor /* tensor */,
+                           scale /* scale */, bias /* bias */,
+                           bias_after_scale /* bias_after_scale */,
+                           dense_out /* out tensor */);
+      break;
+    }
+    case pten::DataType::INT32: {
+      pten::Scale<int32_t>(dev_ctx, dense_tensor /* tensor */,
+                           scale /* scale */, bias /* bias */,
+                           bias_after_scale /* bias_after_scale */,
+                           dense_out /* out tensor */);
       break;
     }
     default: {
@@ -75,11 +68,11 @@ static void ScaleDeviceDispatch(const pt::DenseTensor& dense_tensor,
 
 // TODO(jiabin): This may have serious performance issue move code from
 // gradient_accumulator.cc
-static void FillConstCPUFunctor(pt::DenseTensor* tensor_dense, double value) {
+static void FillConstCPUFunctor(pten::DenseTensor* tensor_dense, double value) {
   PADDLE_ENFORCE(tensor_dense, paddle::platform::errors::Fatal(
                                    "Receive nullptr of dense tensor"));
-  switch (tensor_dense->type()) {
-    case pt::DataType::kINT64: {
+  switch (tensor_dense->data_type()) {
+    case pten::DataType::INT64: {
       int64_t* data_ptr = tensor_dense->mutable_data<int64_t>();
       for (int i = 0; i < tensor_dense->numel(); i++) {
         data_ptr[i] = static_cast<int64_t>(value);
@@ -87,7 +80,7 @@ static void FillConstCPUFunctor(pt::DenseTensor* tensor_dense, double value) {
 
       break;
     }
-    case pt::DataType::kINT32: {
+    case pten::DataType::INT32: {
       int32_t* data_ptr = tensor_dense->mutable_data<int32_t>();
       for (int i = 0; i < tensor_dense->numel(); i++) {
         data_ptr[i] = static_cast<int32_t>(value);
@@ -95,7 +88,7 @@ static void FillConstCPUFunctor(pt::DenseTensor* tensor_dense, double value) {
 
       break;
     }
-    case pt::DataType::kFLOAT64: {
+    case pten::DataType::FLOAT64: {
       double* data_ptr = tensor_dense->mutable_data<double>();
       for (int i = 0; i < tensor_dense->numel(); i++) {
         data_ptr[i] = static_cast<double>(value);
@@ -103,7 +96,7 @@ static void FillConstCPUFunctor(pt::DenseTensor* tensor_dense, double value) {
 
       break;
     }
-    case pt::DataType::kFLOAT32: {
+    case pten::DataType::FLOAT32: {
       float* data_ptr = tensor_dense->mutable_data<float>();
       for (int i = 0; i < tensor_dense->numel(); i++) {
         data_ptr[i] = static_cast<float>(value);
@@ -121,15 +114,16 @@ static void FillConstCPUFunctor(pt::DenseTensor* tensor_dense, double value) {
 
 // TODO(jiabin): This may have serious performance issue move code from
 // gradient_accumulator.cc
-static void FillConstCUDAFunctor(pt::DenseTensor* tensor_dense, double value) {
+static void FillConstCUDAFunctor(pten::DenseTensor* tensor_dense,
+                                 double value) {
   paddle::platform::DeviceContextPool& pool =
       paddle::platform::DeviceContextPool::Instance();
   auto* dev_ctx = dynamic_cast<paddle::platform::CUDADeviceContext*>(
       pool.Get(paddle::platform::CUDAPlace()));
   auto stream = dev_ctx->stream();
 
-  switch (tensor_dense->type()) {
-    case pt::DataType::kINT64: {
+  switch (tensor_dense->data_type()) {
+    case pten::DataType::INT64: {
       std::vector<int64_t> host_data(tensor_dense->numel(),
                                      static_cast<int64_t>(value));
       int64_t* device_ptr = tensor_dense->mutable_data<int64_t>();
@@ -138,7 +132,7 @@ static void FillConstCUDAFunctor(pt::DenseTensor* tensor_dense, double value) {
                            sizeof(int64_t) * tensor_dense->numel(), stream);
       break;
     }
-    case pt::DataType::kINT32: {
+    case pten::DataType::INT32: {
       std::vector<int32_t> host_data(tensor_dense->numel(),
                                      static_cast<int32_t>(value));
       int32_t* device_ptr = tensor_dense->mutable_data<int32_t>();
@@ -147,7 +141,7 @@ static void FillConstCUDAFunctor(pt::DenseTensor* tensor_dense, double value) {
                            sizeof(int32_t) * tensor_dense->numel(), stream);
       break;
     }
-    case pt::DataType::kFLOAT64: {
+    case pten::DataType::FLOAT64: {
       std::vector<double> host_data(tensor_dense->numel(),
                                     static_cast<double>(value));
       double* device_ptr = tensor_dense->mutable_data<double>();
@@ -156,7 +150,7 @@ static void FillConstCUDAFunctor(pt::DenseTensor* tensor_dense, double value) {
                            sizeof(double) * tensor_dense->numel(), stream);
       break;
     }
-    case pt::DataType::kFLOAT32: {
+    case pten::DataType::FLOAT32: {
       std::vector<float> host_data(tensor_dense->numel(),
                                    static_cast<float>(value));
       float* device_ptr = tensor_dense->mutable_data<float>();
@@ -174,22 +168,23 @@ static void FillConstCUDAFunctor(pt::DenseTensor* tensor_dense, double value) {
   }
 }
 
-void ScaleAPI(const paddle::experimental::Tensor& x, float scale, float bias,
-              bool bias_after_scale, paddle::experimental::Tensor* out) {
+void ScaleAPI(const egr::EagerTensor& x, float scale, float bias,
+              bool bias_after_scale, egr::EagerTensor* out) {
   // TODO(jiabin): Support multiple tensor here, Create DenseTensor is not a
   // proper way to Demo it
   // Run Forward Function
-  auto dense_tensor = std::dynamic_pointer_cast<pt::DenseTensor>(x.impl());
+  auto dense_tensor = std::dynamic_pointer_cast<pten::DenseTensor>(x.impl());
 
   // Init output tensor
   auto tensor_meta =
-      pt::TensorMeta(dense_tensor->dims(), dense_tensor->backend(),
-                     dense_tensor->type(), dense_tensor->layout());
-  auto dense_out = std::make_shared<pt::DenseTensor>(std::move(tensor_meta),
-                                                     pt::TensorStatus());
+      pten::TensorMeta(dense_tensor->dims(), dense_tensor->backend(),
+                       dense_tensor->data_type(), dense_tensor->layout());
+  auto dense_out = std::make_shared<pten::DenseTensor>(std::move(tensor_meta),
+                                                       pten::TensorStatus());
 
   // Handle Device Context
-  const paddle::platform::Place& expected_kernel_place = GetExpectedPlace();
+  const paddle::platform::Place& expected_kernel_place =
+      Controller::Instance().GetExpectedPlace();
   paddle::platform::DeviceContextPool& pool =
       paddle::platform::DeviceContextPool::Instance();
 
@@ -221,22 +216,21 @@ void ScaleAPI(const paddle::experimental::Tensor& x, float scale, float bias,
   out->set_impl(dense_out);
 }
 
-void FillConstAPI(double value, const pt::DDim& ddim,
-                  const pt::Backend& backend, const pt::DataType& dtype,
-                  const pt::DataLayout& layout,
-                  paddle::experimental::Tensor* target) {
+void FillConstAPI(double value, const pten::DDim& ddim,
+                  const pten::Backend& backend, const pten::DataType& dtype,
+                  const pten::DataLayout& layout, egr::EagerTensor* target) {
   // Create new tensor->impl and fill it with 1.0
   // Fill 1.0
-  std::shared_ptr<pt::DenseTensor> tensor_dense = nullptr;
+  std::shared_ptr<pten::DenseTensor> tensor_dense = nullptr;
   if (!target->defined() || !target->initialized()) {
     VLOG(6) << "Init undefined or uninitialized tensor in FillConstAPI";
-    auto tensor_meta = pt::TensorMeta(ddim, backend, dtype, layout);
-    tensor_dense = std::make_shared<pt::DenseTensor>(std::move(tensor_meta),
-                                                     pt::TensorStatus());
+    auto tensor_meta = pten::TensorMeta(ddim, backend, dtype, layout);
+    tensor_dense = std::make_shared<pten::DenseTensor>(std::move(tensor_meta),
+                                                       pten::TensorStatus());
     target->set_impl(tensor_dense);
 
   } else {
-    tensor_dense = std::dynamic_pointer_cast<pt::DenseTensor>(target->impl());
+    tensor_dense = std::dynamic_pointer_cast<pten::DenseTensor>(target->impl());
   }
 
   if (!tensor_dense) {
@@ -245,12 +239,12 @@ void FillConstAPI(double value, const pt::DDim& ddim,
   }
   VLOG(6) << "Call FillConstKernel";
   switch (tensor_dense->backend()) {
-    case pt::Backend::kCPU: {
+    case pten::Backend::CPU: {
       VLOG(8) << "Call FillConst CPU Kernel";
       FillConstCPUFunctor(tensor_dense.get(), value);
       break;
     }
-    case pt::Backend::kCUDA: {
+    case pten::Backend::CUDA: {
       VLOG(8) << "Call FillConst CUDA Kernel";
       FillConstCUDAFunctor(tensor_dense.get(), value);
       break;

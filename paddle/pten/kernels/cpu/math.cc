@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/tcmpt/kernels/cpu/math.h"
+#include "paddle/pten/kernels/cpu/math.h"
 
-#include "paddle/tcmpt/kernels/common/eigen/mean.h"
-#include "paddle/tcmpt/kernels/common/eigen/scale.h"
-#include "paddle/tcmpt/kernels/common/eigen/sign.h"
+#include "paddle/pten/kernels/functions/eigen/mean.h"
+#include "paddle/pten/kernels/functions/eigen/scale.h"
+#include "paddle/pten/kernels/functions/eigen/sign.h"
 
 // See Note [ Why still include the fluid headers? ]
 #include "paddle/fluid/framework/eigen.h"
 #include "paddle/fluid/platform/bfloat16.h"
 
-namespace pt {
+namespace pten {
 
 template <typename T>
 void Sign(const CPUContext& dev_ctx, const DenseTensor& x, DenseTensor* out) {
@@ -61,7 +61,7 @@ void ScaleHost(const CPUContext& dev_ctx,
                               out);
 }
 
-}  // namespace pt
+}  // namespace pten
 
 // TODO(chenweihang): replace by better impl
 PT_REGISTER_MODULE(MathCPU);
@@ -69,12 +69,12 @@ PT_REGISTER_MODULE(MathCPU);
 // NOTE(chenweihang): using bfloat16 will cause redefine with xpu bfloat16
 // using bfloat16 = ::paddle::platform::bfloat16;
 
-PT_REGISTER_KERNEL("sign", CPU, NCHW, pt::Sign, float, double) {}
-PT_REGISTER_KERNEL("mean", CPU, NCHW, pt::Mean, float, double) {}
+PT_REGISTER_KERNEL("sign", CPU, ANY, pten::Sign, float, double) {}
+PT_REGISTER_KERNEL("mean", CPU, ANY, pten::Mean, float, double) {}
 PT_REGISTER_KERNEL("scale",
                    CPU,
-                   NCHW,
-                   pt::Scale,
+                   ANY,
+                   pten::Scale,
                    float,
                    double,
                    paddle::platform::bfloat16,
@@ -85,8 +85,8 @@ PT_REGISTER_KERNEL("scale",
                    int64_t) {}
 PT_REGISTER_KERNEL("scale.host",
                    CPU,
-                   NCHW,
-                   pt::ScaleHost,
+                   ANY,
+                   pten::ScaleHost,
                    float,
                    double,
                    paddle::platform::bfloat16,
@@ -95,5 +95,5 @@ PT_REGISTER_KERNEL("scale.host",
                    int16_t,
                    int,
                    int64_t) {
-  kernel->InputAt(1).SetBackend(pt::Backend::kCPU);
+  kernel->InputAt(1).SetBackend(pten::Backend::CPU);
 }

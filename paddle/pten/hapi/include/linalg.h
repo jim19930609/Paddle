@@ -14,17 +14,12 @@
 
 #pragma once
 
-#include "paddle/tcmpt/hapi/include/tensor.h"
+#include "paddle/pten/hapi/include/tensor.h"
 
 namespace paddle {
 namespace experimental {
 
 Tensor dot(const Tensor& x, const Tensor& y);
-
-Tensor matmul(const Tensor& x,
-              const Tensor& y,
-              bool transpose_x,
-              bool transpose_y);
 
 }  // namespace experimental
 }  // namespace paddle

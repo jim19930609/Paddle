@@ -22,10 +22,10 @@ limitations under the License. */
 #include "paddle/fluid/platform/enforce.h"
 #include "paddle/fluid/pybind/eager.h"
 #include "paddle/fluid/pybind/eager_utils.h"
-#include "paddle/tcmpt/api/include/core.h"
-#include "paddle/tcmpt/core/convert_utils.h"
-#include "paddle/tcmpt/core/dense_tensor.h"
-#include "paddle/tcmpt/core/dtype.h"
+#include "paddle/pten/api/include/core.h"
+#include "paddle/pten/common/data_type.h"
+#include "paddle/pten/core/convert_utils.h"
+#include "paddle/pten/core/dense_tensor.h"
 
 namespace paddle {
 namespace pybind {
@@ -37,9 +37,9 @@ PyTypeObject* pEagerTensorType;
 PyObject* eagertensor_new(PyTypeObject* type, PyObject* args,
                           PyObject* kwargs) {
   PyObject* obj = type->tp_alloc(type, 0);
-  if (obj == nullptr) {
-    PADDLE_THROW(platform::errors::Fatal(
-        "tp_alloc return null, can not new a PyObject."));
+  if (obj) {
+    auto v = (EagerTensorObject*)obj;  // NOLINT
+    new (&(v->eagertensor)) egr::EagerTensor();
   }
   return obj;
 }

@@ -42,8 +42,8 @@ namespace egr {
 /* --------------------- */
 /* ---- Eager Scale ---- */
 /* --------------------- */
-void benchmark_eager_scale(const paddle::experimental::Tensor& tensor, bool accuracy_check) {
-  paddle::experimental::Tensor input_tensor = tensor;
+void benchmark_eager_scale(const EagerTensor& tensor, bool accuracy_check) {
+  EagerTensor input_tensor = tensor;
   float scale = 2.0;
   float bias = 3.0;
 
@@ -54,7 +54,7 @@ void benchmark_eager_scale(const paddle::experimental::Tensor& tensor, bool accu
                    true /*trace_backward*/);
   }
 
-  std::vector<paddle::experimental::Tensor> target_tensors = {input_tensor};
+  std::vector<EagerTensor> target_tensors = {input_tensor};
   RunBackward(target_tensors, {});
 
   if (accuracy_check) {
@@ -72,10 +72,10 @@ void benchmark_eager_scale(const paddle::experimental::Tensor& tensor, bool accu
 /* ----------------------------------- */
 /* ---- Eager Intermediate Matmul ---- */
 /* ----------------------------------- */
-void benchmark_eager_intermediate_matmul(const paddle::experimental::Tensor& X,
-                                         const paddle::experimental::Tensor& Y,
+void benchmark_eager_intermediate_matmul(const EagerTensor& X,
+                                         const EagerTensor& Y,
                                          bool accuracy_check) {
-  paddle::experimental::Tensor input_tensor0 = X;
+  EagerTensor input_tensor0 = X;
 
   size_t max_num_runs = accuracy_check ? 2 : max_num_benchmark_runs;
   for (size_t i = 0; i < max_num_runs; i++) {
@@ -86,7 +86,7 @@ void benchmark_eager_intermediate_matmul(const paddle::experimental::Tensor& X,
         "" /*op_device*/, false /*with_quant_attr*/, true /*trace_backward*/);
   }
 
-  std::vector<paddle::experimental::Tensor> target_tensors = {input_tensor0};
+  std::vector<EagerTensor> target_tensors = {input_tensor0};
   RunBackward(target_tensors, {});
 
   if (accuracy_check) {
@@ -107,28 +107,28 @@ void benchmark_eager_intermediate_matmul(const paddle::experimental::Tensor& X,
 /* -------------------------------- */
 /* ---- Eager Intermediate MLP ---- */
 /* -------------------------------- */
-void benchmark_eager_intermediate_mlp(const paddle::experimental::Tensor& X, const paddle::experimental::Tensor& W1,
-                                      const paddle::experimental::Tensor& W2,
+void benchmark_eager_intermediate_mlp(const EagerTensor& X, const EagerTensor& W1,
+                                      const EagerTensor& W2,
                                       bool accuracy_check) {
-  paddle::experimental::Tensor Out1 = matmul_v2_dygraph_function(
+  EagerTensor Out1 = matmul_v2_dygraph_function(
       X, W1, false /*trans_x*/, false /*trans_y*/, false /*use_mkldnn*/,
       "float32" /*mkldnn_data_type*/, 0 /*op_role*/, {} /*op_role_var*/,
       "" /*op_namescope*/, {} /*op_callstack*/, "" /*op_device*/,
       false /*with_quant_attr*/, true /*trace_backward*/);
 
-  paddle::experimental::Tensor Out2 = matmul_v2_dygraph_function(
+  EagerTensor Out2 = matmul_v2_dygraph_function(
       Out1, W2, false /*trans_x*/, false /*trans_y*/, false /*use_mkldnn*/,
       "float32" /*mkldnn_data_type*/, 0 /*op_role*/, {} /*op_role_var*/,
       "" /*op_namescope*/, {} /*op_callstack*/, "" /*op_device*/,
       false /*with_quant_attr*/, true /*trace_backward*/);
 
-  paddle::experimental::Tensor Out = reduce_sum_dygraph_function(
+  EagerTensor Out = reduce_sum_dygraph_function(
       Out2, {0} /*dim*/, false /*keep_dim*/, true /*reduce_all*/,
       -1 /*in_dtype*/, -1 /*out_dtype*/, false /*use_mkldnn*/, 0 /*op_role*/,
       {} /*op_role_var*/, "" /*op_namescope*/, {} /*op_callstack*/,
       "" /*op_device*/, false /*with_quant_attr*/, true /*trace_backward*/);
 
-  std::vector<paddle::experimental::Tensor> target_tensors = {Out};
+  std::vector<EagerTensor> target_tensors = {Out};
   RunBackward(target_tensors, {});
 
   if (accuracy_check) {

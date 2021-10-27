@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/tcmpt/infershape/unary.h"
-#include "paddle/tcmpt/kernels/cuda/manipulation.h"
-#include "paddle/tcmpt/kernels/cuda/utils.h"
+#include "paddle/pten/infershape/unary.h"
+#include "paddle/pten/kernels/cuda/manipulation.h"
+#include "paddle/pten/kernels/cuda/utils.h"
 
-namespace pt {
+namespace pten {
 
 template <typename T>
 void Flatten(const CUDAContext& dev_ctx,
@@ -25,7 +25,7 @@ void Flatten(const CUDAContext& dev_ctx,
              int stop_axis,
              DenseTensor* out) {
   auto out_meta = FlattenInferShape(x.meta(), start_axis, stop_axis);
-  pt::Copy(dev_ctx, x, out);
+  pten::Copy(dev_ctx, x, out);
   out->mutable_meta()->lod = out_meta.lod;
   out->Resize(out_meta.dims);
 }
@@ -51,7 +51,7 @@ void FlattenWithXShape(const CUDAContext& dev_ctx,
   xshape->mutable_meta()->lod = x.meta().lod;
 }
 
-}  // namespace pt
+}  // namespace pten
 
 // TODO(chenweihang): replace by better impl
 PT_REGISTER_MODULE(ManipulationCUDA);
@@ -61,8 +61,8 @@ using float16 = paddle::platform::float16;
 // architecture, kernel_name should be "flatten".
 PT_REGISTER_KERNEL("flatten_contiguous_range",
                    CUDA,
-                   NCHW,
-                   pt::Flatten,
+                   ANY,
+                   pten::Flatten,
                    float,
                    float16,
                    double,
@@ -73,8 +73,8 @@ PT_REGISTER_KERNEL("flatten_contiguous_range",
 
 PT_REGISTER_KERNEL("flatten_contiguous_range.mid",
                    CUDA,
-                   NCHW,
-                   pt::FlattenWithXShape,
+                   ANY,
+                   pten::FlattenWithXShape,
                    float,
                    double,
                    uint8_t,

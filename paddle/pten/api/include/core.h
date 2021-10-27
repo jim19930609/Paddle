@@ -15,8 +15,8 @@ limitations under the License. */
 #pragma once
 
 // See Note: [ How do we organize the kernel directory ]
-#include "paddle/tcmpt/core/convert_utils.h"
-#include "paddle/tcmpt/core/dense_tensor.h"
-#include "paddle/tcmpt/core/kernel_context.h"
-#include "paddle/tcmpt/core/kernel_factory.h"
-#include "paddle/tcmpt/core/scalar.h"
+#include "paddle/pten/core/convert_utils.h"
+#include "paddle/pten/core/dense_tensor.h"
+#include "paddle/pten/core/kernel_context.h"
+#include "paddle/pten/core/kernel_factory.h"
+#include "paddle/pten/core/tensor_meta.h"

@@ -15,11 +15,11 @@ limitations under the License. */
 #pragma once
 #include "paddle/fluid/framework/eigen.h"
 #include "paddle/fluid/framework/op_registry.h"
-#include "paddle/fluid/framework/tcmpt_utils.h"
+#include "paddle/fluid/framework/pten_utils.h"
 
 // only can include the headers in paddle/top/api dirs
-#include "paddle/tcmpt/api/include/core.h"
-#include "paddle/tcmpt/api/include/math.h"
+#include "paddle/pten/api/include/core.h"
+#include "paddle/pten/api/include/math.h"
 
 namespace paddle {
 namespace operators {
@@ -49,7 +49,7 @@ using EigenVector = framework::EigenVector<T, MajorType, IndexType>;
  * Currently, only the first two cases are adapted.
  *
  * The principle here is that the implementation in the kernel must reuse the
- * corresponding functions in the Tensor compute library and cannot maintain
+ * corresponding functions in the Tensor Operation library and cannot maintain
  * two copies of the code.
  */
 template <typename DeviceContext, typename T>
@@ -62,13 +62,13 @@ class MeanKernel : public framework::OpKernel<T> {
     out->mutable_data<T>(x->place());
 
     auto pt_x =
-        framework::MakeTensorImpl<pt::DenseTensor>(*x, x->place(), x->type());
-    auto pt_out =
-        framework::MakeTensorImpl<pt::DenseTensor>(*out, x->place(), x->type());
+        framework::MakeTensorImpl<pten::DenseTensor>(*x, x->place(), x->type());
+    auto pt_out = framework::MakeTensorImpl<pten::DenseTensor>(*out, x->place(),
+                                                               x->type());
 
     // call new kernel
     VLOG(1) << "chenweihang: call original mean kernel compute.";
-    pt::Mean<T>(dev_ctx, *pt_x.get(), pt_out.get());
+    pten::Mean<T>(dev_ctx, *pt_x.get(), pt_out.get());
   }
 };
 

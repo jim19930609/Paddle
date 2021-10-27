@@ -1,15 +1,14 @@
-include(tcmpt)
-# tcmpt api
+# pten api
 add_subdirectory(api)
-# tcmpt high level api
+# pten high level api
 add_subdirectory(hapi)
-# tcmpt core components
+# pten core components
 add_subdirectory(core)
-# tcmpt kernels for diff device
+# pten kernels for diff device
 add_subdirectory(kernels)
-# tcmpt infershape
+# pten infershape
 add_subdirectory(infershape)
-# TODO(xingfeng): tcmpt inner module API designed by a high-performance team
+# TODO(xingfeng): pten inner module API designed by a high-performance team
 add_subdirectory(module)
-# tcmpt tests
+# pten tests
 add_subdirectory(tests)

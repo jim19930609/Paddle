@@ -12,21 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/tcmpt/core/kernel_factory.h"
+#include "paddle/pten/core/kernel_factory.h"
 
 // See Note [ Why still include the fluid headers? ]
 #include "paddle/fluid/platform/enforce.h"
 
-namespace pt {
+namespace pten {
+
+uint32_t KernelKey::Hash::operator()(const KernelKey& key) const {
+  uint32_t hash_value = 0;
+  // |----31-20------|---19-12---|---11-8----|---7-0---|
+  // | For extension | DataType | DataLayout | Backend |
+  hash_value |= static_cast<uint8_t>(key.backend());
+  hash_value |=
+      (static_cast<uint8_t>(key.layout()) << KernelKey::kBackendBitLength);
+  hash_value |=
+      (static_cast<uint16_t>(key.dtype())
+       << (KernelKey::kBackendBitLength + KernelKey::kDataTypeBitLength));
+  return hash_value;
+}
 
 KernelFactory& KernelFactory::Instance() {
   static KernelFactory g_op_kernel_factory;
   return g_op_kernel_factory;
-}
-
-bool KernelFactory::ContainsKernel(const char* kernel_name) const {
-  auto iter = kernels_.find(KernelName(kernel_name, ""));
-  return (iter != kernels_.end());
 }
 
 Kernel KernelFactory::SelectKernel(const KernelName& kernel_name,
@@ -51,6 +59,12 @@ const Kernel& KernelFactory::SelectKernelOrThrowError(
                         "The kernel `%s` is not registered.", kernel_name));
 
   auto kernel_iter = iter->second.find(kernel_key);
+  // TODO(chenweihang): polish refind impl here
+  if (kernel_key.layout() != pten::DataLayout::ANY) {
+    pten::KernelKey any_layout_kernel_key(
+        kernel_key.backend(), pten::DataLayout::ANY, kernel_key.dtype());
+    kernel_iter = iter->second.find(any_layout_kernel_key);
+  }
   PADDLE_ENFORCE_NE(
       kernel_iter,
       iter->second.end(),
@@ -93,4 +107,4 @@ std::ostream& operator<<(std::ostream& os, KernelFactory& kernel_factory) {
   return os;
 }
 
-}  // namespace pt
+}  // namespace pten
