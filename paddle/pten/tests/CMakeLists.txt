@@ -1,0 +1,12 @@
+cc_test(dense_tensor_test SRCS dense_tensor_test.cc DEPS dense_tensor)
+cc_test(kernel_factory_test SRCS kernel_factory_test.cc DEPS kernel_factory)
+cc_test(test_mean_api SRCS test_mean_api.cc DEPS math_api)
+cc_test(test_dot_api SRCS test_dot_api.cc DEPS linalg_api)
+cc_test(test_fill_api SRCS test_fill_api.cc DEPS creation_api)
+cc_test(test_copy_api SRCS test_copy_api.cc DEPS utils_cpu)
+cc_test(test_flatten_api SRCS test_flatten_api.cc DEPS utils_cpu manipulation_api)
+
+cc_test(test_matmul_api SRCS test_matmul_api.cc DEPS linalg_api)
+cc_test(test_grad_matmul_api SRCS test_grad_matmul_api.cc DEPS grad_linalg_api)
+cc_test(test_reduce_api SRCS test_reduce_api.cc DEPS reduce_api)
+cc_test(test_grad_reduce_api SRCS test_grad_reduce_api.cc DEPS grad_reduce_api)
