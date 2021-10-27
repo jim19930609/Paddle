@@ -12,4 +12,5 @@ cc_library(utils_cpu SRCS utils.cc DEPS dense_tensor kernel_context kernel_facto
 cc_library(manipulation_cpu SRCS manipulation.cc DEPS dense_tensor kernel_context kernel_factory utils_cpu unary)
 cc_library(reduce_cpu SRCS reduce.cc DEPS dense_tensor kernel_context kernel_factory)
 
+cc_library(grad_reduce_cpu SRCS grad_reduce.cc DEPS dense_tensor kernel_context kernel_factory utils_cpu)
 cc_library(grad_linalg_cpu SRCS grad_linalg.cc DEPS dense_tensor kernel_context kernel_factory blas)

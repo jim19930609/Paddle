@@ -9,3 +9,4 @@ cc_test(test_flatten_api SRCS test_flatten_api.cc DEPS utils_cpu manipulation_ap
 cc_test(test_matmul_api SRCS test_matmul_api.cc DEPS linalg_api)
 cc_test(test_grad_matmul_api SRCS test_grad_matmul_api.cc DEPS grad_linalg_api)
 cc_test(test_reduce_api SRCS test_reduce_api.cc DEPS reduce_api)
+cc_test(test_grad_reduce_api SRCS test_grad_reduce_api.cc DEPS grad_reduce_api)
