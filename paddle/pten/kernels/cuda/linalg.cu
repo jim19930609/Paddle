@@ -16,6 +16,7 @@
 
 #include "paddle/pten/core/kernel_registry.h"
 #include "paddle/pten/kernels/functions/eigen/dot.h"
+#include "paddle/pten/kernels/functions/math/matmul_function.h"
 
 // See Note [ Why still include the fluid headers? ]
 #include "paddle/fluid/platform/complex.h"
@@ -31,7 +32,7 @@ void Dot(const CUDAContext& dev_ctx,
 }
 
 template <typename T>
-void matmul(const CUDAContext& dev_ctx,
+void Matmul(const CUDAContext& dev_ctx,
             const DenseTensor& x,
             const DenseTensor& y,
             bool transpose_x,
@@ -70,4 +71,4 @@ PT_REGISTER_KERNEL("dot",
                    complex128) {}
 
 PT_REGISTER_KERNEL(
-    "matmul", CUDA, NCHW, pt::matmul, float, double, complex64, complex128) {}
+    "matmul", CUDA, ANY, pten::Matmul, float, double, complex64, complex128) {}

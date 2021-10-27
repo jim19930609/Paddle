@@ -14,17 +14,17 @@
 
 #pragma once
 
-#include "paddle/tcmpt/core/dense_tensor.h"
+#include "paddle/pten/core/dense_tensor.h"
 
 // See Note [ Why still include the fluid headers? ]
 #include "paddle/fluid/platform/device_context.h"
 
-namespace pt {
+namespace pten {
 
 using CUDAContext = paddle::platform::CUDADeviceContext;
 
 template <typename T>
-void grad_matmul(const CUDAContext& dev_ctx,
+void GradMatmul(const CUDAContext& dev_ctx,
                  const DenseTensor& X,
                  const DenseTensor& Y,
                  const DenseTensor& GradOut,
@@ -33,4 +33,4 @@ void grad_matmul(const CUDAContext& dev_ctx,
                  DenseTensor* GradX,
                  DenseTensor* GradY);
 
-}  // namespace pt
+}  // namespace pten

@@ -15,13 +15,13 @@ limitations under the License. */
 
 #pragma once
 
-#include "paddle/tcmpt/core/dense_tensor.h"
-#include "paddle/tcmpt/core/kernel_registry.h"
+#include "paddle/pten/core/dense_tensor.h"
+#include "paddle/pten/core/kernel_registry.h"
 
 // See Note [ Why still include the fluid headers? ]
 #include "paddle/fluid/platform/device_context.h"
 
-namespace pt {
+namespace pten {
 
 using CPUContext = paddle::platform::CPUDeviceContext;
 
@@ -29,7 +29,7 @@ template <typename T>
 void ReduceSum(const CPUContext& dev_ctx,
                const DenseTensor& x,
                bool reduce_all,
-               // const std::vector<int>& dim,
+               const std::vector<int>& dim,
                bool keep_dim,
                int out_dtype,
                DenseTensor* out);

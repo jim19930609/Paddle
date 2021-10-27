@@ -33,7 +33,7 @@ void Dot(const CUDAContext& dev_ctx,
          DenseTensor* out);
 
 template <typename T>
-void matmul(const CUDAContext& dev_ctx,
+void Matmul(const CUDAContext& dev_ctx,
             const DenseTensor& x,
             const DenseTensor& y,
             bool transpose_x,

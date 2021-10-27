@@ -27,6 +27,7 @@
 #include "paddle/fluid/eager/autograd_meta.h"
 
 #include "paddle/fluid/eager/nodes/scale_node.h"
+#include "paddle/fluid/eager/nodes/matmul_v2_node.h"
 
 #include "paddle/fluid/eager/eager_tensor.h"
 #include "paddle/fluid/eager/function_api.h"
@@ -74,8 +75,8 @@ egr::EagerTensor scale(const egr::EagerTensor& x, float scale, float bias,
     p_autograd_out->SetSingleOutRankWithSlot(0, 0);
 
     // Init GradNode
-    auto scale_node = std::make_shared<GradNodeScale>(/* fwd_in_slot_num */ 1,
-                                                      /* bwd_in_slot_num */ 1);
+    auto scale_node = std::make_shared<GradNodeScale>(/* bwd_in_slot_num */ 1,
+                                                      /* bwd_out_slot_num */ 1);
 
     // Pass Attributes to GradNode
     scale_node->SetAttributes_scale(scale);
@@ -93,6 +94,81 @@ egr::EagerTensor scale(const egr::EagerTensor& x, float scale, float bias,
 
     // Set History for output set current Grad Node for
     EagerUtils::SetHistory(p_autograd_out, scale_node);
+  }
+
+  return out;
+}
+
+egr::EagerTensor matmul(const egr::EagerTensor& x, const egr::EagerTensor& y, 
+                        bool transpose_x, bool transpose_y, bool trace_backward) {
+  // 1. Run Forward
+  egr::EagerTensor out;
+  
+  const std::shared_ptr<paddle::experimental::Tensor>& x_tensor = x.Tensor();
+  const std::shared_ptr<paddle::experimental::Tensor>& y_tensor = y.Tensor();
+  PADDLE_ENFORCE(x_tensor != nullptr,
+                 paddle::platform::errors::Fatal(
+                     "Underlying member \"tensor_\" of Input X is Null"));
+  PADDLE_ENFORCE(y_tensor != nullptr,
+                 paddle::platform::errors::Fatal(
+                     "Underlying member \"tensor_\" of Input Y is Null"));
+  paddle::experimental::Tensor out_tensor = paddle::experimental::matmul(*x_tensor.get(), *y_tensor.get(), transpose_x, transpose_y);
+  out.set_tensor(std::make_shared<paddle::experimental::Tensor>(out_tensor));
+
+  // 2. Build Backward Depends
+  // 2.1 Get AutogradMetas for all ins and outs
+  auto p_autograd_x = EagerUtils::unsafe_autograd_meta(x);
+  auto p_autograd_y = EagerUtils::unsafe_autograd_meta(y);
+
+  // NOTE: Call EagerUtils::multi_autograd_meta  when we have vector of outputs
+  auto p_autograd_out = EagerUtils::autograd_meta(&out);
+
+  // 2.2 Add GradNode
+  // 2.2.1 ComputeRequireGrad
+  // TODO(jiabin) : make this function accept different kinds of input
+  // TODO(zhanlve): which one is more efficient:
+  //                1. construct a vector of pointers
+  //                2. call "ComputeRequireGrad" multiple times
+  bool require_any_grad = ComputeRequireGrad(trace_backward, p_autograd_x, p_autograd_y);
+  if (require_any_grad) {
+    PassStopGradient(false /*generate_grad*/, p_autograd_out);
+
+    // 2.2.2 Set OutRankInfo for outputs this needs to be as same as Edges's
+    // input_rank_
+    /** Note:
+    // 1. We provide EagerUtils::SetMultiOutRank(vector<AutogradMeta*>),
+    // since we have some of Operator has servel slot name with duplicate
+    outputs.
+    // 2. We call AutogradMeta's SetOutput Rank only when we have single output
+    with
+    // single slot name.
+    **/
+
+    // Init GradNode
+    auto matmul_node = std::make_shared<GradNodeMatmul>(/* bwd_in_slot_num */ 1,
+                                                        /* bwd_out_slot_num */ 2);
+
+    // Pass Attributes to GradNode
+    matmul_node->SetAttributes_transpose_x(transpose_x);
+    matmul_node->SetAttributes_transpose_y(transpose_y);
+
+    // Set Next Edges
+    matmul_node->AddEdges(*p_autograd_x, /*slot id*/ 0);
+    matmul_node->AddEdges(*p_autograd_y, /*slot id*/ 1);
+
+    // Set TensorWrappers
+    matmul_node->SetTensorWrapperX(x);
+    matmul_node->SetTensorWrapperY(y);
+
+    // Set Grad out rank as same as fwd input and set stop gradient to bwd
+    matmul_node->SetGradOutMeta(*p_autograd_x, /*slot id*/ 0);
+    matmul_node->SetGradOutMeta(*p_autograd_y, /*slot id*/ 1);
+    // Set Grad out rank as same as fwd input and set stop gradient to bwd
+    matmul_node->SetGradInMeta(*p_autograd_out, /*slot id*/ 0);
+    p_autograd_out->SetSingleOutRankWithSlot(0, 0);
+
+    // Set History for output set current Grad Node for
+    EagerUtils::SetHistory(p_autograd_out, matmul_node);
   }
 
   return out;

@@ -116,20 +116,20 @@ TEST(Benchmark, EagerIntermediateMLPCPU) {
   for (const std::string& mode : {"Accuracy", "Performance"}) {
     paddle::framework::DDim ddimX = paddle::framework::make_ddim({4, 16});
     paddle::experimental::Tensor X = EagerUtils::CreateTensorWithValue(
-        ddimX, pt::Backend::kCPU, pt::DataType::kFLOAT32, pt::DataLayout::kNCHW,
+        ddimX, pten::Backend::CPU, pten::DataType::FLOAT32, pten::DataLayout::NCHW,
         1.0, true);
     RetainGradForTensor(X);
 
     paddle::framework::DDim ddimW1 = paddle::framework::make_ddim({16, 32});
     paddle::experimental::Tensor W1 = EagerUtils::CreateTensorWithValue(
-        ddimW1, pt::Backend::kCPU, pt::DataType::kFLOAT32,
-        pt::DataLayout::kNCHW, 2.0, true);
+        ddimW1, pten::Backend::CPU, pten::DataType::FLOAT32,
+        pten::DataLayout::NCHW, 2.0, true);
     RetainGradForTensor(W1);
 
     paddle::framework::DDim ddimW2 = paddle::framework::make_ddim({32, 64});
     paddle::experimental::Tensor W2 = EagerUtils::CreateTensorWithValue(
-        ddimW2, pt::Backend::kCPU, pt::DataType::kFLOAT32,
-        pt::DataLayout::kNCHW, 3.0, true);
+        ddimW2, pten::Backend::CPU, pten::DataType::FLOAT32,
+        pten::DataLayout::NCHW, 3.0, true);
     RetainGradForTensor(W2);
 
     if (mode == "Accuracy") {

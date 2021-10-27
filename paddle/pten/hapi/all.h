@@ -20,3 +20,6 @@ limitations under the License. */
 #include "paddle/pten/hapi/include/manipulation.h"
 #include "paddle/pten/hapi/include/math.h"
 #include "paddle/pten/hapi/include/tensor.h"
+#include "paddle/pten/hapi/include/reduce.h"
+#include "paddle/pten/hapi/include/grad_linalg.h"
+#include "paddle/pten/hapi/include/grad_reduce.h"

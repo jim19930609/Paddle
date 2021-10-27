@@ -185,6 +185,8 @@ class EagerTensor final {
   void set_tensor(const std::shared_ptr<paddle::experimental::Tensor>& tensor) {
     tensor_ = tensor;
   }
+  
+  const std::shared_ptr<paddle::experimental::Tensor>& Tensor() const { return tensor_; }
 
   /** Part 9: Get framework::Variable from EagerTensor **/
   const paddle::framework::Variable& Var() const { return var_; }

@@ -1,4 +1,4 @@
-add_subdirectory(benchmark)
+#add_subdirectory(benchmark)
 
 cc_test(test_egr_autocodegen SRCS generated_test.cc DEPS ${eager_deps} ${fluid_deps} ${generated_deps})
 

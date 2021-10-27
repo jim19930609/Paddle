@@ -284,8 +284,8 @@ struct ElementwiseAddTo<platform::CUDADeviceContext, T> {
     auto& place = *(ctx->eigen_device());
     out.device(place) = out + in;
   }
-  void operator()(platform::CUDADeviceContext* ctx,
-                  const pten::DenseTensor& src, pten::DenseTensor* dst) {
+  void operator()(platform::CUDADeviceContext* ctx, const pten::DenseTensor& src,
+                  pten::DenseTensor* dst) {
     auto in = pten::EigenVector<T>::Flatten(src);
     auto out = pten::EigenVector<T>::Flatten(*dst);
     auto& place = *(ctx->eigen_device());

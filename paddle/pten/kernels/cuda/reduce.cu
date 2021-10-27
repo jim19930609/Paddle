@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/tcmpt/core/convert_utils.h"
-#include "paddle/tcmpt/kernels/common/eigen/common.h"
-#include "paddle/tcmpt/kernels/cuda/reduce.h"
-#include "paddle/tcmpt/kernels/cuda/utils.h"
+#include "paddle/pten/core/convert_utils.h"
+#include "paddle/pten/kernels/functions/eigen/common.h"
+#include "paddle/pten/kernels/cuda/reduce.h"
+#include "paddle/pten/kernels/cuda/utils.h"
 
 #include "paddle/fluid/operators/reduce_ops/cub_reduce.h"
 #include "paddle/fluid/operators/reduce_ops/reduce_op.cu.h"
 #include "paddle/fluid/platform/complex.h"
 
-#include "paddle/tcmpt/kernels/common/math/reduce_function.h"
-#include "paddle/tcmpt/kernels/common/math/transform_function.h"
+#include "paddle/pten/kernels/functions/math/reduce_function.h"
+#include "paddle/pten/kernels/functions/math/transform_function.h"
 
-namespace pt {
+namespace pten {
 
 template <typename Tx, typename Ty = Tx>
 struct IdentityFunctor {
@@ -71,12 +71,12 @@ void TensorReduceFunctorImpl(const CUDAContext& dev_ctx,
   auto y_data = y->mutable_data<Ty>();
   if (config.reduce_num == 1) {
     auto out_dims = y->dims();
-    if (x.type() == y->type()) {
-      pt::Copy(dev_ctx, x, y);
+    if (x.data_type() == y->data_type()) {
+      pten::Copy(dev_ctx, x, y);
       y->Resize(out_dims);
     } else {
       paddle::framework::VisitDataType(
-          static_cast<paddle::framework::proto::VarType::Type>(y->type()),
+          static_cast<paddle::framework::proto::VarType::Type>(y->data_type()),
           math::CastOpFunctor<CUDAContext, Tx>(x, y, dev_ctx));
     }
     return;
@@ -239,11 +239,10 @@ template <typename T>
 void ReduceSum(const CUDAContext& dev_ctx,
                const DenseTensor& x,
                bool reduce_all,
-               // const std::vector<int>& dim,
+               const std::vector<int>& dim,
                bool keep_dim,
                int out_dtype,
                DenseTensor* out) {
-  std::vector<int> dim(1);
   ReduceSumCudaKernel<T, CustomSum>(
       dev_ctx, x, reduce_all, dim, keep_dim, out_dtype, out);
 }
@@ -258,8 +257,8 @@ using complex128 = ::paddle::platform::complex<double>;
 
 PT_REGISTER_KERNEL("reduce_sum",
                    CUDA,
-                   NCHW,
-                   pt::ReduceSum,
+                   ANY,
+                   pten::ReduceSum,
                    bool,
                    float,
                    double,

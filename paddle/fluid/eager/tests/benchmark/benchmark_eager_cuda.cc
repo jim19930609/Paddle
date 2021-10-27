@@ -121,20 +121,20 @@ TEST(Benchmark, EagerIntermediateMLPCUDA) {
   for (const std::string& mode : {"Accuracy", "WarmUp", "Performance"}) {
     paddle::framework::DDim ddimX = paddle::framework::make_ddim({4, 16});
     paddle::experimental::Tensor X = EagerUtils::CreateTensorWithValue(
-        ddimX, pt::Backend::kCUDA, pt::DataType::kFLOAT32,
-        pt::DataLayout::kNCHW, 1.0, true);
+        ddimX, pten::Backend::CUDA, pten::DataType::FLOAT,
+        pten::DataLayout::kNCHW, 1.0, true);
     RetainGradForTensor(X);
 
     paddle::framework::DDim ddimW1 = paddle::framework::make_ddim({16, 32});
     paddle::experimental::Tensor W1 = EagerUtils::CreateTensorWithValue(
-        ddimW1, pt::Backend::kCUDA, pt::DataType::kFLOAT32,
-        pt::DataLayout::kNCHW, 2.0, true);
+        ddimW1, pten::Backend::CUDA, pten::DataType::FLOAT,
+        pten::DataLayout::kNCHW, 2.0, true);
     RetainGradForTensor(W1);
 
     paddle::framework::DDim ddimW2 = paddle::framework::make_ddim({32, 64});
     paddle::experimental::Tensor W2 = EagerUtils::CreateTensorWithValue(
-        ddimW2, pt::Backend::kCUDA, pt::DataType::kFLOAT32,
-        pt::DataLayout::kNCHW, 3.0, true);
+        ddimW2, pten::Backend::CUDA, pten::DataType::FLOAT,
+        pten::DataLayout::kNCHW, 3.0, true);
     RetainGradForTensor(W2);
 
     if (mode == "Accuracy") {

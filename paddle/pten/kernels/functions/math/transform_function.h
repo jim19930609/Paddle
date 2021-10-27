@@ -18,10 +18,10 @@ limitations under the License. */
 #include "paddle/fluid/operators/math/complex_functors.h"
 #include "paddle/fluid/platform/transform.h"
 
-#include "paddle/tcmpt/core/dense_tensor.h"
-#include "paddle/tcmpt/kernels/common/eigen/common.h"
+#include "paddle/pten/core/dense_tensor.h"
+#include "paddle/pten/kernels/functions/eigen/common.h"
 
-namespace pt {
+namespace pten {
 namespace math {
 
 template <typename InT, typename OutT>

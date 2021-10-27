@@ -12,19 +12,19 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "paddle/tcmpt/hapi/include/grad_linalg.h"
+#include "paddle/pten/hapi/include/grad_linalg.h"
 
 #include <memory>
 
 #include "glog/logging.h"
 
-#include "paddle/tcmpt/api/include/core.h"
-#include "paddle/tcmpt/api/include/infershape.h"
-#include "paddle/tcmpt/core/convert_utils.h"
-#include "paddle/tcmpt/core/dense_tensor.h"
-#include "paddle/tcmpt/core/kernel_context.h"
-#include "paddle/tcmpt/hapi/lib/kernel_generate.h"
-#include "paddle/tcmpt/infershape/binary.h"
+#include "paddle/pten/api/include/core.h"
+#include "paddle/pten/api/include/infershape.h"
+#include "paddle/pten/core/convert_utils.h"
+#include "paddle/pten/core/dense_tensor.h"
+#include "paddle/pten/core/kernel_context.h"
+#include "paddle/pten/hapi/lib/kernel_dispatch.h"
+#include "paddle/pten/infershape/binary.h"
 
 namespace paddle {
 namespace experimental {
@@ -35,26 +35,22 @@ std::vector<Tensor> grad_matmul(const Tensor& x,
                                 bool transpose_x,
                                 bool transpose_y) {
   // 1. Get kernel signature and kernel
-  auto kernel_signature = ParseKernelNameAndKeyByArgs("grad_matmul", grad_out);
-  VLOG(1) << kernel_signature.first;
-  VLOG(1) << kernel_signature.second;
-  VLOG(1) << pt::KernelFactory::Instance();
-
-  auto kernel = pt::KernelFactory::Instance().SelectKernelOrThrowError(
-      kernel_signature.first, kernel_signature.second);
-  VLOG(1) << kernel;
+  auto kernel_key_set = ParseKernelKeyByInputArgs(grad_out);
+  auto kernel_key = kernel_key_set.GetHigestPriorityKernelKey();
+  auto kernel = pten::KernelFactory::Instance().SelectKernelOrThrowError(
+      "grad_matmul", kernel_key);
 
   // 2. Get Device Context
-  auto* dev_ctx = GetDeviceContextByBackend(kernel_signature.second.backend());
-  auto kernel_context = pt::KernelContext(*dev_ctx);
+  auto* dev_ctx = GetDeviceContextByBackend(kernel_key.backend());
+  auto kernel_context = pten::KernelContext(*dev_ctx);
 
   // 3. Auto data transform
-  auto dense_x = std::dynamic_pointer_cast<pt::DenseTensor>(x.impl());
+  auto dense_x = std::dynamic_pointer_cast<pten::DenseTensor>(x.impl());
   kernel_context.EmplaceBackInput(dense_x);
-  auto dense_y = std::dynamic_pointer_cast<pt::DenseTensor>(y.impl());
+  auto dense_y = std::dynamic_pointer_cast<pten::DenseTensor>(y.impl());
   kernel_context.EmplaceBackInput(dense_y);
   auto dense_grad_out =
-      std::dynamic_pointer_cast<pt::DenseTensor>(grad_out.impl());
+      std::dynamic_pointer_cast<pten::DenseTensor>(grad_out.impl());
   kernel_context.EmplaceBackInput(dense_grad_out);
 
   kernel_context.EmplaceBackAttr(transpose_x);
@@ -66,9 +62,9 @@ std::vector<Tensor> grad_matmul(const Tensor& x,
   Tensor grad_y_out;
   // TODO(chenweihang): deal with multiple outputs
   auto dense_grad_x_out =
-      std::make_shared<pt::DenseTensor>(dense_x->meta(), pt::TensorStatus());
+      std::make_shared<pten::DenseTensor>(dense_x->meta(), pten::TensorStatus());
   auto dense_grad_y_out =
-      std::make_shared<pt::DenseTensor>(dense_y->meta(), pt::TensorStatus());
+      std::make_shared<pten::DenseTensor>(dense_y->meta(), pten::TensorStatus());
 
   kernel_context.EmplaceBackOutput(dense_grad_x_out);
   kernel_context.EmplaceBackOutput(dense_grad_y_out);

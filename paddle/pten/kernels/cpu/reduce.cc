@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/tcmpt/kernels/cpu/reduce.h"
-#include "paddle/tcmpt/core/convert_utils.h"
-#include "paddle/tcmpt/kernels/common/eigen/common.h"
-#include "paddle/tcmpt/kernels/common/math/reduce_function.h"
+#include "paddle/pten/kernels/cpu/reduce.h"
+#include "paddle/pten/core/convert_utils.h"
+#include "paddle/pten/kernels/functions/eigen/common.h"
+#include "paddle/pten/kernels/functions/math/reduce_function.h"
 
 #include "paddle/fluid/platform/complex.h"
 
-namespace pt {
+namespace pten {
 
 // ------------------------------- //
 // ------ Specific Functors ------ //
@@ -29,11 +29,10 @@ template <typename T>
 void ReduceSum(const CPUContext& dev_ctx,
                const DenseTensor& x,
                bool reduce_all,
-               // const std::vector<int>& dim,
+               const std::vector<int>& dim,
                bool keep_dim,
                int out_dtype,
                DenseTensor* out) {
-  std::vector<int> dim(1);
   math::ReduceKernel<CPUContext, T, math::SumFunctor>(
       dev_ctx, x, reduce_all, dim, keep_dim, out_dtype, out);
 }
@@ -48,8 +47,8 @@ using complex128 = ::paddle::platform::complex<double>;
 
 PT_REGISTER_KERNEL("reduce_sum",
                    CPU,
-                   NCHW,
-                   pt::ReduceSum,
+                   ANY,
+                   pten::ReduceSum,
                    bool,
                    float,
                    double,

@@ -15,11 +15,11 @@ limitations under the License. */
 #include <gtest/gtest.h>
 #include <memory>
 
-#include "paddle/tcmpt/hapi/include/grad_reduce.h"
+#include "paddle/pten/hapi/include/grad_reduce.h"
 
-#include "paddle/tcmpt/core/dense_tensor.h"
-#include "paddle/tcmpt/core/kernel_registry.h"
-#include "paddle/tcmpt/kernels/cuda/utils.h"
+#include "paddle/pten/core/dense_tensor.h"
+#include "paddle/pten/core/kernel_registry.h"
+#include "paddle/pten/kernels/cuda/utils.h"
 
 PT_DECLARE_MODULE(GradReduceCPU);
 
@@ -32,30 +32,30 @@ using DDim = paddle::framework::DDim;
 
 TEST(API, grad_reduce_sum_cpu) {
   // 1. create tensor
-  pt::TensorMeta x_meta = pt::TensorMeta(framework::make_ddim({3, 3}),
-                                         pt::Backend::kCPU,
-                                         pt::DataType::kFLOAT32,
-                                         pt::DataLayout::kNCHW);
+  pten::TensorMeta x_meta = pten::TensorMeta(framework::make_ddim({3, 3}),
+                                         pten::Backend::CPU,
+                                         pten::DataType::FLOAT32,
+                                         pten::DataLayout::NCHW);
 
-  auto dense_x = std::make_shared<pt::DenseTensor>(x_meta, pt::TensorStatus());
+  auto dense_x = std::make_shared<pten::DenseTensor>(x_meta, pten::TensorStatus());
   auto* dense_x_data = dense_x->mutable_data<float>();
 
-  pt::TensorMeta out_meta = pt::TensorMeta(framework::make_ddim({1}),
-                                           pt::Backend::kCPU,
-                                           pt::DataType::kFLOAT32,
-                                           pt::DataLayout::kNCHW);
+  pten::TensorMeta out_meta = pten::TensorMeta(framework::make_ddim({1}),
+                                           pten::Backend::CPU,
+                                           pten::DataType::FLOAT32,
+                                           pten::DataLayout::NCHW);
 
   auto dense_out =
-      std::make_shared<pt::DenseTensor>(out_meta, pt::TensorStatus());
+      std::make_shared<pten::DenseTensor>(out_meta, pten::TensorStatus());
   auto* dense_out_data = dense_out->mutable_data<float>();
 
-  pt::TensorMeta grad_out_meta = pt::TensorMeta(framework::make_ddim({1}),
-                                                pt::Backend::kCPU,
-                                                pt::DataType::kFLOAT32,
-                                                pt::DataLayout::kNCHW);
+  pten::TensorMeta grad_out_meta = pten::TensorMeta(framework::make_ddim({1}),
+                                                pten::Backend::CPU,
+                                                pten::DataType::FLOAT32,
+                                                pten::DataLayout::NCHW);
 
   auto dense_grad_out =
-      std::make_shared<pt::DenseTensor>(grad_out_meta, pt::TensorStatus());
+      std::make_shared<pten::DenseTensor>(grad_out_meta, pten::TensorStatus());
   auto* dense_grad_out_data = dense_grad_out->mutable_data<float>();
 
   dense_out_data[0] = 9.0;
@@ -79,42 +79,42 @@ TEST(API, grad_reduce_sum_cpu) {
   ASSERT_EQ(grad_x.shape()[0], 3);
   ASSERT_EQ(grad_x.shape()[1], 3);
   ASSERT_EQ(grad_x.numel(), 9);
-  ASSERT_EQ(grad_x.type(), pt::DataType::kFLOAT32);
-  ASSERT_EQ(grad_x.layout(), pt::DataLayout::kNCHW);
+  ASSERT_EQ(grad_x.type(), pten::DataType::FLOAT32);
+  ASSERT_EQ(grad_x.layout(), pten::DataLayout::NCHW);
   ASSERT_EQ(grad_x.initialized(), true);
 
-  auto dense_grad_x = std::dynamic_pointer_cast<pt::DenseTensor>(grad_x.impl());
+  auto dense_grad_x = std::dynamic_pointer_cast<pten::DenseTensor>(grad_x.impl());
   for (size_t i = 0; i < 9; i++) {
     ASSERT_NEAR(grad_x_result[i], dense_grad_x->data<float>()[i], 1e-6f);
   }
 }
 
 TEST(API, grad_reduce_sum_cuda) {
-  pt::TensorMeta ref_x_meta = pt::TensorMeta(framework::make_ddim({3, 3}),
-                                             pt::Backend::kCPU,
-                                             pt::DataType::kFLOAT32,
-                                             pt::DataLayout::kNCHW);
+  pten::TensorMeta ref_x_meta = pten::TensorMeta(framework::make_ddim({3, 3}),
+                                             pten::Backend::CPU,
+                                             pten::DataType::FLOAT32,
+                                             pten::DataLayout::NCHW);
 
   auto dense_ref_x =
-      std::make_shared<pt::DenseTensor>(ref_x_meta, pt::TensorStatus());
+      std::make_shared<pten::DenseTensor>(ref_x_meta, pten::TensorStatus());
   auto* dense_ref_x_data = dense_ref_x->mutable_data<float>();
 
-  pt::TensorMeta ref_out_meta = pt::TensorMeta(framework::make_ddim({1}),
-                                               pt::Backend::kCPU,
-                                               pt::DataType::kFLOAT32,
-                                               pt::DataLayout::kNCHW);
+  pten::TensorMeta ref_out_meta = pten::TensorMeta(framework::make_ddim({1}),
+                                               pten::Backend::CPU,
+                                               pten::DataType::FLOAT32,
+                                               pten::DataLayout::NCHW);
 
   auto dense_ref_out =
-      std::make_shared<pt::DenseTensor>(ref_out_meta, pt::TensorStatus());
+      std::make_shared<pten::DenseTensor>(ref_out_meta, pten::TensorStatus());
   auto* dense_ref_out_data = dense_ref_out->mutable_data<float>();
 
-  pt::TensorMeta ref_grad_out_meta = pt::TensorMeta(framework::make_ddim({1}),
-                                                    pt::Backend::kCPU,
-                                                    pt::DataType::kFLOAT32,
-                                                    pt::DataLayout::kNCHW);
+  pten::TensorMeta ref_grad_out_meta = pten::TensorMeta(framework::make_ddim({1}),
+                                                    pten::Backend::CPU,
+                                                    pten::DataType::FLOAT32,
+                                                    pten::DataLayout::NCHW);
 
   auto dense_ref_grad_out =
-      std::make_shared<pt::DenseTensor>(ref_grad_out_meta, pt::TensorStatus());
+      std::make_shared<pten::DenseTensor>(ref_grad_out_meta, pten::TensorStatus());
   auto* dense_ref_grad_out_data = dense_ref_grad_out->mutable_data<float>();
 
   dense_ref_out_data[0] = 9.0;
@@ -129,32 +129,32 @@ TEST(API, grad_reduce_sum_cuda) {
   auto place = paddle::platform::CUDAPlace();
   auto* dev_ctx = pool.GetByPlace(place);
 
-  pt::TensorMeta x_meta = pt::TensorMeta(framework::make_ddim({3, 3}),
-                                         pt::Backend::kCUDA,
-                                         pt::DataType::kFLOAT32,
-                                         pt::DataLayout::kNCHW);
+  pten::TensorMeta x_meta = pten::TensorMeta(framework::make_ddim({3, 3}),
+                                         pten::Backend::CUDA,
+                                         pten::DataType::FLOAT32,
+                                         pten::DataLayout::NCHW);
 
-  auto dense_x = std::make_shared<pt::DenseTensor>(x_meta, pt::TensorStatus());
+  auto dense_x = std::make_shared<pten::DenseTensor>(x_meta, pten::TensorStatus());
 
-  pt::TensorMeta out_meta = pt::TensorMeta(framework::make_ddim({1}),
-                                           pt::Backend::kCUDA,
-                                           pt::DataType::kFLOAT32,
-                                           pt::DataLayout::kNCHW);
+  pten::TensorMeta out_meta = pten::TensorMeta(framework::make_ddim({1}),
+                                           pten::Backend::CUDA,
+                                           pten::DataType::FLOAT32,
+                                           pten::DataLayout::NCHW);
 
   auto dense_out =
-      std::make_shared<pt::DenseTensor>(out_meta, pt::TensorStatus());
+      std::make_shared<pten::DenseTensor>(out_meta, pten::TensorStatus());
 
-  pt::TensorMeta grad_out_meta = pt::TensorMeta(framework::make_ddim({1}),
-                                                pt::Backend::kCUDA,
-                                                pt::DataType::kFLOAT32,
-                                                pt::DataLayout::kNCHW);
+  pten::TensorMeta grad_out_meta = pten::TensorMeta(framework::make_ddim({1}),
+                                                pten::Backend::CUDA,
+                                                pten::DataType::FLOAT32,
+                                                pten::DataLayout::NCHW);
 
   auto dense_grad_out =
-      std::make_shared<pt::DenseTensor>(grad_out_meta, pt::TensorStatus());
+      std::make_shared<pten::DenseTensor>(grad_out_meta, pten::TensorStatus());
 
-  pt::Copy(*dev_ctx, *dense_ref_x.get(), dense_x.get());
-  pt::Copy(*dev_ctx, *dense_ref_out.get(), dense_out.get());
-  pt::Copy(*dev_ctx, *dense_ref_grad_out.get(), dense_grad_out.get());
+  pten::Copy(*dev_ctx, *dense_ref_x.get(), dense_x.get());
+  pten::Copy(*dev_ctx, *dense_ref_out.get(), dense_out.get());
+  pten::Copy(*dev_ctx, *dense_ref_grad_out.get(), dense_grad_out.get());
 
   paddle::experimental::Tensor x(dense_x);
   paddle::experimental::Tensor out(dense_out);
@@ -169,19 +169,19 @@ TEST(API, grad_reduce_sum_cuda) {
   ASSERT_EQ(grad_x.shape()[0], 3);
   ASSERT_EQ(grad_x.shape()[1], 3);
   ASSERT_EQ(grad_x.numel(), 9);
-  ASSERT_EQ(grad_x.type(), pt::DataType::kFLOAT32);
-  ASSERT_EQ(grad_x.layout(), pt::DataLayout::kNCHW);
+  ASSERT_EQ(grad_x.type(), pten::DataType::FLOAT32);
+  ASSERT_EQ(grad_x.layout(), pten::DataLayout::NCHW);
   ASSERT_EQ(grad_x.initialized(), true);
 
-  auto dense_grad_x = std::dynamic_pointer_cast<pt::DenseTensor>(grad_x.impl());
-  pt::TensorMeta grad_x_meta = pt::TensorMeta(dense_grad_x->dims(),
-                                              pt::Backend::kCPU,
-                                              pt::DataType::kFLOAT32,
-                                              pt::DataLayout::kNCHW);
+  auto dense_grad_x = std::dynamic_pointer_cast<pten::DenseTensor>(grad_x.impl());
+  pten::TensorMeta grad_x_meta = pten::TensorMeta(dense_grad_x->dims(),
+                                              pten::Backend::CPU,
+                                              pten::DataType::FLOAT32,
+                                              pten::DataLayout::NCHW);
 
   auto ref_grad_x =
-      std::make_shared<pt::DenseTensor>(grad_x_meta, pt::TensorStatus());
-  pt::Copy(*dev_ctx, *dense_grad_x.get(), ref_grad_x.get());
+      std::make_shared<pten::DenseTensor>(grad_x_meta, pten::TensorStatus());
+  pten::Copy(*dev_ctx, *dense_grad_x.get(), ref_grad_x.get());
   for (size_t i = 0; i < 9; i++) {
     ASSERT_NEAR(grad_x_result[i], ref_grad_x->data<float>()[i], 1e-6f);
   }

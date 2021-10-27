@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "paddle/tcmpt/hapi/include/tensor.h"
+#include "paddle/pten/hapi/include/tensor.h"
 
 namespace paddle {
 namespace experimental {
@@ -24,11 +24,6 @@ Tensor reduce_sum(const Tensor& x,
                   const std::vector<int>& dim,
                   bool keep_dim,
                   int out_dtype);
-
-Tensor matmul(const Tensor& x,
-              const Tensor& y,
-              bool transpose_x,
-              bool transpose_y);
 
 }  // namespace experimental
 }  // namespace paddle

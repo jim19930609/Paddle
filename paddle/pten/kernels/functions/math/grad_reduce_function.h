@@ -18,14 +18,14 @@ limitations under the License. */
 #include "paddle/fluid/operators/math/blas.h"
 #include "paddle/fluid/operators/math/complex_functors.h"
 
-#include "paddle/tcmpt/core/convert_utils.h"
-#include "paddle/tcmpt/core/dense_tensor.h"
-#include "paddle/tcmpt/kernels/common/eigen/common.h"
-#include "paddle/tcmpt/kernels/common/math/reduce_function.h"
-#include "paddle/tcmpt/kernels/cpu/utils.h"
-#include "paddle/tcmpt/kernels/cuda/utils.h"
+#include "paddle/pten/core/convert_utils.h"
+#include "paddle/pten/core/dense_tensor.h"
+#include "paddle/pten/kernels/functions/eigen/common.h"
+#include "paddle/pten/kernels/functions/math/reduce_function.h"
+#include "paddle/pten/kernels/cpu/utils.h"
+#include "paddle/pten/kernels/cuda/utils.h"
 
-namespace pt {
+namespace pten {
 namespace math {
 
 template <typename InType, typename OutType>
@@ -101,8 +101,8 @@ void ReduceGradFunctor(const DeviceContext& context,
                        const DenseTensor& input2,  // GradOut
                        const std::vector<int>& dims,
                        DenseTensor* output /*GradX*/) {
-  auto x = pt::EigenTensor<T, D>::From(input0);
-  auto x_grad = pt::EigenTensor<T, D>::From(*output);
+  auto x = pten::EigenTensor<T, D>::From(input0);
+  auto x_grad = pten::EigenTensor<T, D>::From(*output);
   auto x_rank = static_cast<int>(x.dimensions().size());
   auto x_dims = input0.dims();
   auto reduced_dims_v = paddle::framework::vectorize(x_dims);
@@ -120,8 +120,8 @@ void ReduceGradFunctor(const DeviceContext& context,
     broad_cats_times *= x_dims[dims_ref[i]];
   }
   auto reduced_dims = paddle::framework::make_ddim(reduced_dims_v);
-  auto x_reduce = pt::EigenTensor<T, D>::From(input1, reduced_dims);
-  auto x_reduce_grad = pt::EigenTensor<T, D>::From(input2, reduced_dims);
+  auto x_reduce = pten::EigenTensor<T, D>::From(input1, reduced_dims);
+  auto x_reduce_grad = pten::EigenTensor<T, D>::From(input2, reduced_dims);
 
   auto& place = *context.eigen_device();
 
@@ -175,7 +175,7 @@ void HandleLargeDimGrad(const DeviceContext& context,
   GetOriginDimFromShuffled(x_dim, dims, &origin_axis);
 
   DenseTensor dx_tmp(dx->meta(), TensorStatus());
-  pt::Copy(context, *dx, &dx_tmp);
+  pten::Copy(context, *dx, &dx_tmp);
 
   dx_tmp.Resize(shuffled_dim);
   dx->Resize(x_dim);
@@ -270,10 +270,10 @@ struct ReduceGradKernel {
     }
     reduce_all = (reduce_all || full_dim);
     if (reduce_all) {
-      auto x = pt::EigenVector<T>::Flatten(input0);
-      auto x_reduce = pt::EigenVector<T>::Flatten(input1);
-      auto x_reduce_grad = pt::EigenVector<T>::Flatten(input2);
-      auto x_grad = pt::EigenVector<T>::Flatten(*GradX);
+      auto x = pten::EigenVector<T>::Flatten(input0);
+      auto x_reduce = pten::EigenVector<T>::Flatten(input1);
+      auto x_reduce_grad = pten::EigenVector<T>::Flatten(input2);
+      auto x_grad = pten::EigenVector<T>::Flatten(*GradX);
       auto& place = *dev_ctx.eigen_device();
       auto broadcast_dim =
           Eigen::array<int, 1>({{static_cast<int>(input0.numel())}});
@@ -330,14 +330,14 @@ struct ReduceGradKernel {
                DenseTensor* GradX) {
     if (in_dtype >= 0) {
       auto in_kernel_type = paddle::framework::OpKernelType(
-          TransToProtoVarType(GradOut.type()), dev_ctx.GetPlace());
+          TransToProtoVarType(GradOut.data_type()), dev_ctx.GetPlace());
       auto out_kernel_type = paddle::framework::OpKernelType(
           static_cast<paddle::framework::proto::VarType::Type>(in_dtype),
           dev_ctx.GetPlace());
 
       TensorMeta tmp_meta(GradOut.dims(),
                           GradOut.backend(),
-                          TransToPtDataType(out_kernel_type.data_type_),
+                          TransToPtenDataType(out_kernel_type.data_type_),
                           GradOut.layout());
       DenseTensor tmp_tensor(tmp_meta, TensorStatus());
 
@@ -446,14 +446,14 @@ struct ReduceSumGradKernel {
         dims.size() == 1) {
       if (in_dtype >= 0) {
         auto in_kernel_type = paddle::framework::OpKernelType(
-            TransToProtoVarType(GradOut.type()), dev_ctx.GetPlace());
+            TransToProtoVarType(GradOut.data_type()), dev_ctx.GetPlace());
         auto out_kernel_type = paddle::framework::OpKernelType(
             static_cast<paddle::framework::proto::VarType::Type>(in_dtype),
             dev_ctx.GetPlace());
 
         TensorMeta tmp_meta(GradOut.dims(),
                             GradOut.backend(),
-                            TransToPtDataType(out_kernel_type.data_type_),
+                            TransToPtenDataType(out_kernel_type.data_type_),
                             GradOut.layout());
         DenseTensor tmp_tensor(tmp_meta, TensorStatus());
 

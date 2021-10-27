@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/tcmpt/kernels/cpu/grad_reduce.h"
-#include "paddle/tcmpt/core/convert_utils.h"
-#include "paddle/tcmpt/kernels/common/eigen/common.h"
-#include "paddle/tcmpt/kernels/common/math/grad_reduce_function.h"
+#include "paddle/pten/kernels/cpu/grad_reduce.h"
+#include "paddle/pten/core/convert_utils.h"
+#include "paddle/pten/kernels/functions/eigen/common.h"
+#include "paddle/pten/kernels/functions/math/grad_reduce_function.h"
 
 #include "paddle/fluid/platform/complex.h"
 
-namespace pt {
+namespace pten {
 
 template <typename T>
 void GradReduceSum(const CPUContext& dev_ctx,
@@ -27,15 +27,14 @@ void GradReduceSum(const CPUContext& dev_ctx,
                    const DenseTensor& Out,
                    const DenseTensor& GradOut,
                    bool reduce_all,
-                   // const std::vector<int>& dims,
+                   const std::vector<int>& dims,
                    int in_dtype,
                    DenseTensor* GradX) {
-  std::vector<int> dims = {0};
   math::ReduceSumGradKernel<CPUContext, T, math::SumGradFunctor, true> kernel;
   kernel.Compute(dev_ctx, X, Out, GradOut, reduce_all, dims, in_dtype, GradX);
 }
 
-}  // namespace pt
+}  // namespace pten
 
 // TODO(chenweihang): replace by better impl
 PT_REGISTER_MODULE(GradReduceCPU);
@@ -45,8 +44,8 @@ using complex128 = ::paddle::platform::complex<double>;
 
 PT_REGISTER_KERNEL("grad_reduce_sum",
                    CPU,
-                   NCHW,
-                   pt::GradReduceSum,
+                   ANY,
+                   pten::GradReduceSum,
                    bool,
                    float,
                    double,

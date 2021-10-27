@@ -40,7 +40,7 @@ using CUDAContext = paddle::platform::CUDADeviceContext;
 #endif
 
 namespace detail {
-BackendSet GetTensorBackendSet(const Tensor& t) {
+inline BackendSet GetTensorBackendSet(const Tensor& t) {
   BackendSet backend_set(pten::TransToPtenBackend(t.place()));
   switch (t.layout()) {
     case DataLayout::MKLDNN:
@@ -53,7 +53,7 @@ BackendSet GetTensorBackendSet(const Tensor& t) {
   return backend_set;
 }
 
-std::size_t CountLeadingZeros(uint64_t val) {
+inline std::size_t CountLeadingZeros(uint64_t val) {
   if (val == 0) {
     return 64;
   }
@@ -136,7 +136,7 @@ KernelKeySet ParseKernelKeyByInputArgs(const Args&... args) {
   return detail::KernelKeyParser().apply(args...).key_set;
 }
 
-paddle::platform::DeviceContext* GetDeviceContextByBackend(
+inline paddle::platform::DeviceContext* GetDeviceContextByBackend(
     pten::Backend backend) {
   auto& pool = paddle::platform::DeviceContextPool::Instance();
   return pool.Get(pten::TransToFluidPlace(backend));

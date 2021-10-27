@@ -20,7 +20,7 @@
 #include "paddle/fluid/framework/eigen.h"
 // #include "paddle/fluid/operators/math/blas.h"
 #include "paddle/fluid/platform/complex.h"
-#include "paddle/tcmpt/kernels/common/math/matmul_function.h"
+#include "paddle/pten/kernels/functions/math/matmul_function.h"
 
 namespace pten {
 
@@ -47,7 +47,7 @@ void Dot(const CPUContext& dev_ctx,
 }
 
 template <typename T>
-void matmul(const CPUContext& dev_ctx,
+void Matmul(const CPUContext& dev_ctx,
             const DenseTensor& x,
             const DenseTensor& y,
             bool transpose_x,
@@ -86,4 +86,4 @@ PT_REGISTER_KERNEL("dot",
                    complex128) {}
 
 PT_REGISTER_KERNEL(
-    "matmul", CPU, NCHW, pt::matmul, float, double, complex64, complex128) {}
+    "matmul", CPU, ANY, pten::Matmul, float, double, complex64, complex128) {}

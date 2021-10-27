@@ -15,11 +15,11 @@ limitations under the License. */
 #include <gtest/gtest.h>
 #include <memory>
 
-#include "paddle/tcmpt/hapi/include/reduce.h"
+#include "paddle/pten/hapi/include/reduce.h"
 
-#include "paddle/tcmpt/core/dense_tensor.h"
-#include "paddle/tcmpt/core/kernel_registry.h"
-#include "paddle/tcmpt/kernels/cuda/utils.h"
+#include "paddle/pten/core/dense_tensor.h"
+#include "paddle/pten/core/kernel_registry.h"
+#include "paddle/pten/kernels/cuda/utils.h"
 
 PT_DECLARE_MODULE(ReduceCPU);
 
@@ -32,12 +32,12 @@ using DDim = paddle::framework::DDim;
 
 TEST(API, reduce_sum_cpu) {
   // 1. create tensor
-  auto dense_x = std::make_shared<pt::DenseTensor>(
-      pt::TensorMeta(framework::make_ddim({10, 10}),
-                     pt::Backend::kCPU,
-                     pt::DataType::kFLOAT32,
-                     pt::DataLayout::kNCHW),
-      pt::TensorStatus());
+  auto dense_x = std::make_shared<pten::DenseTensor>(
+      pten::TensorMeta(framework::make_ddim({10, 10}),
+                     pten::Backend::CPU,
+                     pten::DataType::FLOAT32,
+                     pten::DataLayout::NCHW),
+      pten::TensorStatus());
   auto* dense_x_data = dense_x->mutable_data<float>();
 
   float result = 0.0;
@@ -58,24 +58,24 @@ TEST(API, reduce_sum_cpu) {
   ASSERT_EQ(out.shape().size(), 1);
   ASSERT_EQ(out.shape()[0], 1);
   ASSERT_EQ(out.is_cpu(), true);
-  ASSERT_EQ(out.type(), pt::DataType::kFLOAT32);
-  ASSERT_EQ(out.layout(), pt::DataLayout::kNCHW);
+  ASSERT_EQ(out.type(), pten::DataType::FLOAT32);
+  ASSERT_EQ(out.layout(), pten::DataLayout::NCHW);
   ASSERT_EQ(out.initialized(), true);
 
-  auto dense_out = std::dynamic_pointer_cast<pt::DenseTensor>(out.impl());
+  auto dense_out = std::dynamic_pointer_cast<pten::DenseTensor>(out.impl());
 
   ASSERT_NEAR(result, dense_out->data<float>()[0], 1e-6f);
 }
 
 TEST(API, reduce_sum_cuda) {
   // Prepare CPU Dense Tensor
-  pt::TensorMeta ref_x_meta = pt::TensorMeta(framework::make_ddim({10, 10}),
-                                             pt::Backend::kCPU,
-                                             pt::DataType::kFLOAT32,
-                                             pt::DataLayout::kNCHW);
+  pten::TensorMeta ref_x_meta = pten::TensorMeta(framework::make_ddim({10, 10}),
+                                             pten::Backend::CPU,
+                                             pten::DataType::FLOAT32,
+                                             pten::DataLayout::NCHW);
 
   auto ref_x =
-      std::make_shared<pt::DenseTensor>(ref_x_meta, pt::TensorStatus());
+      std::make_shared<pten::DenseTensor>(ref_x_meta, pten::TensorStatus());
   auto* ref_x_data = ref_x->mutable_data<float>();
 
   float result = 0.0;
@@ -85,18 +85,18 @@ TEST(API, reduce_sum_cuda) {
   }
 
   // 1. create tensor
-  auto dense_x = std::make_shared<pt::DenseTensor>(
-      pt::TensorMeta(framework::make_ddim({10, 10}),
-                     pt::Backend::kCUDA,
-                     pt::DataType::kFLOAT32,
-                     pt::DataLayout::kNCHW),
-      pt::TensorStatus());
+  auto dense_x = std::make_shared<pten::DenseTensor>(
+      pten::TensorMeta(framework::make_ddim({10, 10}),
+                     pten::Backend::CUDA,
+                     pten::DataType::FLOAT32,
+                     pten::DataLayout::NCHW),
+      pten::TensorStatus());
 
   auto& pool = paddle::platform::DeviceContextPool::Instance();
   auto place = paddle::platform::CUDAPlace();
   auto* dev_ctx = pool.GetByPlace(place);
 
-  pt::Copy(*dev_ctx, *ref_x.get(), dense_x.get());
+  pten::Copy(*dev_ctx, *ref_x.get(), dense_x.get());
 
   paddle::experimental::Tensor x(dense_x);
 
@@ -110,19 +110,19 @@ TEST(API, reduce_sum_cuda) {
   // 3. check result
   ASSERT_EQ(out.shape().size(), 1);
   ASSERT_EQ(out.shape()[0], 1);
-  ASSERT_EQ(out.type(), pt::DataType::kFLOAT32);
-  ASSERT_EQ(out.layout(), pt::DataLayout::kNCHW);
+  ASSERT_EQ(out.type(), pten::DataType::FLOAT32);
+  ASSERT_EQ(out.layout(), pten::DataLayout::NCHW);
   ASSERT_EQ(out.initialized(), true);
 
-  auto dense_out = std::dynamic_pointer_cast<pt::DenseTensor>(out.impl());
+  auto dense_out = std::dynamic_pointer_cast<pten::DenseTensor>(out.impl());
 
-  pt::TensorMeta out_meta = pt::TensorMeta(out.shape(),
-                                           pt::Backend::kCPU,
-                                           pt::DataType::kFLOAT32,
-                                           pt::DataLayout::kNCHW);
+  pten::TensorMeta out_meta = pten::TensorMeta(out.shape(),
+                                           pten::Backend::CPU,
+                                           pten::DataType::FLOAT32,
+                                           pten::DataLayout::NCHW);
   auto ref_out =
-      std::make_shared<pt::DenseTensor>(out_meta, pt::TensorStatus());
-  pt::Copy(*dev_ctx, *dense_out.get(), ref_out.get());
+      std::make_shared<pten::DenseTensor>(out_meta, pten::TensorStatus());
+  pten::Copy(*dev_ctx, *dense_out.get(), ref_out.get());
 
   ASSERT_NEAR(result, ref_out->data<float>()[0], 1e-6f);
 }

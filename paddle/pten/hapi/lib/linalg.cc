@@ -68,23 +68,19 @@ Tensor matmul(const Tensor& x,
               bool transpose_x,
               bool transpose_y) {
   // 1. Get kernel signature and kernel
-  auto kernel_signature = ParseKernelNameAndKeyByArgs("matmul", x);
-  VLOG(1) << kernel_signature.first;
-  VLOG(1) << kernel_signature.second;
-  VLOG(1) << pt::KernelFactory::Instance();
-
-  auto kernel = pt::KernelFactory::Instance().SelectKernelOrThrowError(
-      kernel_signature.first, kernel_signature.second);
-  VLOG(1) << kernel;
+  auto kernel_key_set = ParseKernelKeyByInputArgs(x);
+  auto kernel_key = kernel_key_set.GetHigestPriorityKernelKey();
+  auto kernel = pten::KernelFactory::Instance().SelectKernelOrThrowError(
+      "matmul", kernel_key);
 
   // 2. Get Device Context
-  auto* dev_ctx = GetDeviceContextByBackend(kernel_signature.second.backend());
-  auto kernel_context = pt::KernelContext(*dev_ctx);
+  auto* dev_ctx = GetDeviceContextByBackend(kernel_key.backend());
+  auto kernel_context = pten::KernelContext(*dev_ctx);
 
   // 3. Auto data transform
-  auto dense_x = std::dynamic_pointer_cast<pt::DenseTensor>(x.impl());
+  auto dense_x = std::dynamic_pointer_cast<pten::DenseTensor>(x.impl());
   kernel_context.EmplaceBackInput(dense_x);
-  auto dense_y = std::dynamic_pointer_cast<pt::DenseTensor>(y.impl());
+  auto dense_y = std::dynamic_pointer_cast<pten::DenseTensor>(y.impl());
   kernel_context.EmplaceBackInput(dense_y);
 
   kernel_context.EmplaceBackAttr(transpose_x);
@@ -100,7 +96,7 @@ Tensor matmul(const Tensor& x,
   Tensor out;
   // TODO(chenweihang): deal with multiple outputs
   auto dense_out =
-      std::make_shared<pt::DenseTensor>(out_meta, pt::TensorStatus());
+      std::make_shared<pten::DenseTensor>(out_meta, pten::TensorStatus());
   kernel_context.EmplaceBackOutput(dense_out);
   out.set_impl(dense_out);
 

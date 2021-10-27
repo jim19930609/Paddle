@@ -17,17 +17,17 @@ limitations under the License. */
 #include "paddle/fluid/operators/math/blas.h"
 #include "paddle/fluid/operators/math/complex_functors.h"
 
-#include "paddle/tcmpt/core/convert_utils.h"
-#include "paddle/tcmpt/core/dense_tensor.h"
-#include "paddle/tcmpt/kernels/common/eigen/common.h"
-#include "paddle/tcmpt/kernels/common/math/transform_function.h"
-#include "paddle/tcmpt/kernels/cuda/utils.h"
+#include "paddle/pten/core/convert_utils.h"
+#include "paddle/pten/core/dense_tensor.h"
+#include "paddle/pten/kernels/functions/eigen/common.h"
+#include "paddle/pten/kernels/functions/math/transform_function.h"
+#include "paddle/pten/kernels/cuda/utils.h"
 
 #if defined(__NVCC__) || defined(__HIPCC__)
 #include "paddle/fluid/operators/reduce_ops/cub_reduce.h"
 #endif
 
-namespace pt {
+namespace pten {
 namespace math {
 
 struct SumFunctor {
@@ -95,7 +95,7 @@ void TensorReduce(const paddle::platform::CUDADeviceContext& dev_ctx,
   auto y_data = y->mutable_data<Ty>();
   if (reduce_num == 1) {
     auto out_dims = y->dims();
-    pt::Copy(dev_ctx, x, y);
+    pten::Copy(dev_ctx, x, y);
     y->Resize(out_dims);
     return;
   }
@@ -146,7 +146,7 @@ void ReduceFunctor(const DeviceContext& dev_ctx,
                    DenseTensor* output,
                    const std::vector<int>& dims,
                    bool keep_dim) {
-  auto x = pt::EigenTensor<T, D>::From(input);
+  auto x = pten::EigenTensor<T, D>::From(input);
   auto x_rank = static_cast<int>(x.dimensions().size());
   auto reduce_dim = Eigen::array<int, R_D>();
   std::vector<int> dims_ref = dims;
@@ -170,10 +170,10 @@ void ReduceFunctor(const DeviceContext& dev_ctx,
   Functor functor;
 
   if (D == 1) {
-    auto out = pt::EigenScalar<T>::From(*output);
+    auto out = pten::EigenScalar<T>::From(*output);
     functor(place, &x, &out, reduce_dim);
   } else {
-    auto out = pt::EigenTensor<T, (D - R_D)>::From(*output, out_dims);
+    auto out = pten::EigenTensor<T, (D - R_D)>::From(*output, out_dims);
     functor(place, &x, &out, reduce_dim);
   }
 }
@@ -231,7 +231,7 @@ void HandleLargeDim(const DeviceContext& dev_ctx,
                     const std::vector<int>& dims,
                     bool keep_dim) {
   //  shuffle the reduced dim to the end
-  DenseTensor shuffled_input(input.meta(), pt::TensorStatus());
+  DenseTensor shuffled_input(input.meta(), pten::TensorStatus());
   GetShuffledInput<DeviceContext, OutT>(dev_ctx, input, &shuffled_input, dims);
 
   // transpose to 2D tensor whose shape is {unreduced, reduced}.
@@ -271,8 +271,8 @@ struct ReduceKernelFunctor {
     output->mutable_data<OutT>();
     if (reduce_all) {
       // Flatten and reduce 1-D tensor
-      auto x = pt::EigenVector<OutT>::Flatten(input);
-      auto out = pt::EigenScalar<OutT>::From(*output);
+      auto x = pten::EigenVector<OutT>::Flatten(input);
+      auto out = pten::EigenScalar<OutT>::From(*output);
       auto& place = *dev.eigen_device();
       auto reduce_dim = Eigen::array<int, 1>({{0}});
       Functor functor;
@@ -327,7 +327,7 @@ void ReduceKernel(const DeviceContext& dev_ctx,
 
   if (out_dtype < 0) {
     paddle::framework::proto::VarType::Type cast_out_dtype =
-        TransToProtoVarType(x.type());
+        TransToProtoVarType(x.data_type());
     paddle::framework::VisitDataType(
         cast_out_dtype,
         ReduceKernelFunctor<DeviceContext, T, Functor>(

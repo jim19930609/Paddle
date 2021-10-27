@@ -18,14 +18,14 @@ limitations under the License. */
 #include "paddle/fluid/operators/math/complex_functors.h"
 #include "paddle/fluid/platform/for_range.h"
 
-#include "paddle/tcmpt/core/dense_tensor.h"
-#include "paddle/tcmpt/kernels/common/eigen/common.h"
+#include "paddle/pten/core/dense_tensor.h"
+#include "paddle/pten/kernels/functions/eigen/common.h"
 
-#include "paddle/tcmpt/kernels/common/math/matmul_function.h"
-#include "paddle/tcmpt/kernels/common/math/reduce_function.h"
-#include "paddle/tcmpt/kernels/common/math/transform_function.h"
+#include "paddle/pten/kernels/functions/math/matmul_function.h"
+#include "paddle/pten/kernels/functions/math/reduce_function.h"
+#include "paddle/pten/kernels/functions/math/transform_function.h"
 
-namespace pt {
+namespace pten {
 namespace math {
 
 struct IdentityFunctor {
@@ -158,8 +158,8 @@ struct Transpose {
     for (int i = 0; i < Rank; i++) {
       permute[i] = axis[i];
     }
-    auto eigen_in = pt::EigenTensor<T, Rank>::From(in);
-    auto eigen_out = pt::EigenTensor<T, Rank>::From(*out);
+    auto eigen_in = pten::EigenTensor<T, Rank>::From(in);
+    auto eigen_out = pten::EigenTensor<T, Rank>::From(*out);
     auto* dev = dev_ctx.eigen_device();
     // use 32bit index to speed up computation
     bool use_32bit_index = eigen_out.size() < Eigen::NumTraits<int>::highest();
@@ -378,10 +378,10 @@ struct DotGradFunction<DeviceContext,
                   DenseTensor* tensor_dy) {
 #if defined(__NVCC__) || defined(__HIPCC__)
     if (1 == tensor_dout->dims().size()) {
-      auto dout = pt::EigenVector<T>::Flatten(*tensor_dout);
+      auto dout = pten::EigenVector<T>::Flatten(*tensor_dout);
 
       if (tensor_dx) {
-        auto y = pt::EigenVector<T>::Flatten(*tensor_y);
+        auto y = pten::EigenVector<T>::Flatten(*tensor_y);
         auto& dev = *dev_ctx.eigen_device();
         Eigen::DSizes<int, 1> size(tensor_dx->numel());
 
@@ -392,13 +392,13 @@ struct DotGradFunction<DeviceContext,
             tensor_y->numel(),
             tensor_dx->mutable_data<T>());
         for_range(functor);
-        auto dx = pt::EigenVector<T>::Flatten(*tensor_dx);
+        auto dx = pten::EigenVector<T>::Flatten(*tensor_dx);
 
         dx.device(dev) = dx * dout.broadcast(size);
       }
 
       if (tensor_dy) {
-        auto x = pt::EigenVector<T>::Flatten(*tensor_x);
+        auto x = pten::EigenVector<T>::Flatten(*tensor_x);
         auto& dev = *dev_ctx.eigen_device();
         Eigen::DSizes<int, 1> size(tensor_dy->numel());
 
@@ -409,16 +409,16 @@ struct DotGradFunction<DeviceContext,
             tensor_x->numel(),
             tensor_dy->mutable_data<T>());
         for_range(functor);
-        auto dy = pt::EigenVector<T>::Flatten(*tensor_dy);
+        auto dy = pten::EigenVector<T>::Flatten(*tensor_dy);
 
         dy.device(dev) = dy * dout.broadcast(size);
       }
     } else {
-      auto dout = pt::EigenMatrix<T>::From(*tensor_dout);
+      auto dout = pten::EigenMatrix<T>::From(*tensor_dout);
 
       if (tensor_dx) {
         tensor_dx->mutable_data<T>();
-        auto y = pt::EigenMatrix<T>::From(*tensor_y);
+        auto y = pten::EigenMatrix<T>::From(*tensor_y);
         auto& dev = *dev_ctx.eigen_device();
         Eigen::DSizes<int, 2> size(1, tensor_dx->dims()[1]);
 
@@ -429,14 +429,14 @@ struct DotGradFunction<DeviceContext,
             tensor_y->numel(),
             tensor_dx->mutable_data<T>());
         for_range(functor);
-        auto dx = pt::EigenMatrix<T>::From(*tensor_dx);
+        auto dx = pten::EigenMatrix<T>::From(*tensor_dx);
 
         dx.device(dev) = dx * dout.broadcast(size);
       }
 
       if (tensor_dy) {
         tensor_dy->mutable_data<T>();
-        auto x = pt::EigenMatrix<T>::From(*tensor_x);
+        auto x = pten::EigenMatrix<T>::From(*tensor_x);
         auto& dev = *dev_ctx.eigen_device();
         Eigen::DSizes<int, 2> size(1, tensor_dy->dims()[1]);
 
@@ -448,7 +448,7 @@ struct DotGradFunction<DeviceContext,
             tensor_dy->mutable_data<T>());
         for_range(functor);
 
-        auto dy = pt::EigenMatrix<T>::From(*tensor_dy);
+        auto dy = pten::EigenMatrix<T>::From(*tensor_dy);
 
         dy.device(dev) = dy * dout.broadcast(size);
       }
@@ -501,30 +501,30 @@ struct DotGradFunction<DeviceContext,
                   DenseTensor* tensor_dy) {
 #if defined(__NVCC__) || defined(__HIPCC__)
     if (1 == tensor_dout->dims().size()) {
-      auto dout = pt::EigenVector<T>::Flatten(*tensor_dout);
+      auto dout = pten::EigenVector<T>::Flatten(*tensor_dout);
 
       if (tensor_dx) {
-        auto y = pt::EigenVector<T>::Flatten(*tensor_y);
-        auto dx = pt::EigenVector<T>::Flatten(*tensor_dx);
+        auto y = pten::EigenVector<T>::Flatten(*tensor_y);
+        auto dx = pten::EigenVector<T>::Flatten(*tensor_dx);
         auto& dev = *dev_ctx.eigen_device();
         Eigen::DSizes<int, 1> size(tensor_dx->numel());
         dx.device(dev) = y * dout.broadcast(size);
       }
 
       if (tensor_dy) {
-        auto x = pt::EigenVector<T>::Flatten(*tensor_x);
-        auto dy = pt::EigenVector<T>::Flatten(*tensor_dy);
+        auto x = pten::EigenVector<T>::Flatten(*tensor_x);
+        auto dy = pten::EigenVector<T>::Flatten(*tensor_dy);
         auto& dev = *dev_ctx.eigen_device();
         Eigen::DSizes<int, 1> size(tensor_dy->numel());
         dy.device(dev) = x * dout.broadcast(size);
       }
     } else {
-      auto dout = pt::EigenMatrix<T>::From(*tensor_dout);
+      auto dout = pten::EigenMatrix<T>::From(*tensor_dout);
 
       if (tensor_dx) {
         tensor_dx->mutable_data<T>();
-        auto y = pt::EigenMatrix<T>::From(*tensor_y);
-        auto dx = pt::EigenMatrix<T>::From(*tensor_dx);
+        auto y = pten::EigenMatrix<T>::From(*tensor_y);
+        auto dx = pten::EigenMatrix<T>::From(*tensor_dx);
         auto& dev = *dev_ctx.eigen_device();
         Eigen::DSizes<int, 2> size(1, tensor_dx->dims()[1]);
         dx.device(dev) = y * dout.broadcast(size);
@@ -532,8 +532,8 @@ struct DotGradFunction<DeviceContext,
 
       if (tensor_dy) {
         tensor_dy->mutable_data<T>();
-        auto x = pt::EigenMatrix<T>::From(*tensor_x);
-        auto dy = pt::EigenMatrix<T>::From(*tensor_dy);
+        auto x = pten::EigenMatrix<T>::From(*tensor_x);
+        auto dy = pten::EigenMatrix<T>::From(*tensor_dy);
         auto& dev = *dev_ctx.eigen_device();
         Eigen::DSizes<int, 2> size(1, tensor_dy->dims()[1]);
         dy.device(dev) = x * dout.broadcast(size);
@@ -583,8 +583,8 @@ void GradMatMulFunction(const DeviceContext& dev_ctx,
   DenseTensor GradOut(GradOut_in.meta(), TensorStatus());
   GradOut.ShareAllocation(GradOut_in.allocation());
 
-  pt::DenseTensor x_conj(X.meta(), pt::TensorStatus());
-  pt::DenseTensor y_conj(Y.meta(), pt::TensorStatus());
+  pten::DenseTensor x_conj(X.meta(), pten::TensorStatus());
+  pten::DenseTensor y_conj(Y.meta(), pten::TensorStatus());
 
   // get dims
   std::vector<std::int64_t> x_dims = vectorize(X.dims());
@@ -682,8 +682,8 @@ void GradMatMulFunction(const DeviceContext& dev_ctx,
     // So we should avoid the case in reality.
     VLOG(3) << "It need cost much time to reduce sum for the broadcast and "
                "wastes the memory. So we should avoid the case in reality";
-    pt::DenseTensor dx_help(GradX->meta(), pt::TensorStatus());
-    pt::DenseTensor dy_help(GradY->meta(), pt::TensorStatus());
+    pten::DenseTensor dx_help(GradX->meta(), pten::TensorStatus());
+    pten::DenseTensor dy_help(GradY->meta(), pten::TensorStatus());
 
     ConjHelper<DeviceContext, T> conj_helper(dev_ctx);
     conj_helper(X, x_conj);

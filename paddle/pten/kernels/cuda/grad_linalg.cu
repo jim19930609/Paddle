@@ -12,20 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "paddle/tcmpt/kernels/cuda/grad_linalg.h"
-
-#include "paddle/tcmpt/core/kernel_registry.h"
+#include "paddle/pten/kernels/cuda/grad_linalg.h"
+#include "paddle/pten/core/kernel_registry.h"
 
 // See Note [ Why still include the fluid headers? ]
 #include "paddle/fluid/framework/eigen.h"
 // #include "paddle/fluid/operators/math/blas.h"
 #include "paddle/fluid/platform/complex.h"
-#include "paddle/tcmpt/kernels/common/math/grad_matmul_function.h"
+#include "paddle/pten/kernels/functions/math/grad_matmul_function.h"
 
-namespace pt {
+namespace pten {
 
 template <typename T>
-void grad_matmul(const CUDAContext& dev_ctx,
+void GradMatmul(const CUDAContext& dev_ctx,
                  const DenseTensor& X,
                  const DenseTensor& Y,
                  const DenseTensor& GradOut,
@@ -46,8 +45,8 @@ using complex128 = ::paddle::platform::complex<double>;
 
 PT_REGISTER_KERNEL("grad_matmul",
                    CUDA,
-                   NCHW,
-                   pt::grad_matmul,
+                   ANY,
+                   pten::GradMatmul,
                    float,
                    double,
                    complex64,

@@ -17,10 +17,10 @@ limitations under the License. */
 #include "paddle/fluid/operators/math/blas.h"
 #include "paddle/fluid/operators/math/complex_functors.h"
 
-#include "paddle/tcmpt/core/dense_tensor.h"
-#include "paddle/tcmpt/kernels/common/eigen/common.h"
+#include "paddle/pten/core/dense_tensor.h"
+#include "paddle/pten/kernels/functions/eigen/common.h"
 
-namespace pt {
+namespace pten {
 namespace math {
 
 inline void GetBroadcastFromDims(const int x_ndim,
@@ -116,9 +116,9 @@ void MatMulFunction(const DeviceContext& dev_ctx,
             Y.numel()));
     Out->Resize({1});
     Out->mutable_data<T>();
-    auto out_eigen = pt::EigenScalar<T>::From(*Out);
-    auto x_eigen = pt::EigenVector<T>::Flatten(X);
-    auto y_eigen = pt::EigenVector<T>::Flatten(Y);
+    auto out_eigen = pten::EigenScalar<T>::From(*Out);
+    auto x_eigen = pten::EigenVector<T>::Flatten(X);
+    auto y_eigen = pten::EigenVector<T>::Flatten(Y);
 
     auto& dev = *dev_ctx.eigen_device();
     if (flag) {
