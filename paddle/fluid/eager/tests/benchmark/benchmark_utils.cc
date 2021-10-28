@@ -69,6 +69,37 @@ void benchmark_eager_scale(const EagerTensor& tensor, bool accuracy_check) {
   }
 }
 
+/* ---------------------------- */
+/* ---- Eager Final Matmul ---- */
+/* ---------------------------- */
+void benchmark_eager_matmul(const EagerTensor& X, const EagerTensor& Y,
+                            bool accuracy_check) {
+  EagerTensor input_tensor0 = X;
+
+  size_t max_num_runs = accuracy_check ? 2 : max_num_benchmark_runs;
+  for (size_t i = 0; i < max_num_runs; i++) {
+    input_tensor0 = egr::matmul(input_tensor0, Y, false /*trans_x*/,
+                                false /*trans_y*/, true /*trace_backward*/);
+  }
+
+  std::vector<EagerTensor> target_tensors = {input_tensor0};
+  RunBackward(target_tensors, {});
+
+  if (accuracy_check) {
+    // Examine Forward Grad (w.r.t max_num_runs = 2)
+    PADDLE_ENFORCE(
+        CompareTensorWithValue<float>(input_tensor0, 16) == true,
+        paddle::platform::errors::Fatal("Numerical Error, Expected %f", 16.0));
+    // Examine Backward Grad (w.r.t max_num_runs = 2)
+    PADDLE_ENFORCE(
+        CompareGradTensorWithValue<float>(X, 16) == true,
+        paddle::platform::errors::Fatal("Numerical Error, Expected %f", 16.0));
+    PADDLE_ENFORCE(
+        CompareGradTensorWithValue<float>(Y, 16) == true,
+        paddle::platform::errors::Fatal("Numerical Error, Expected %f", 16.0));
+  }
+}
+
 /* ----------------------------------- */
 /* ---- Eager Intermediate Matmul ---- */
 /* ----------------------------------- */
@@ -80,7 +111,8 @@ void benchmark_eager_intermediate_matmul(const EagerTensor& X,
   size_t max_num_runs = accuracy_check ? 2 : max_num_benchmark_runs;
   for (size_t i = 0; i < max_num_runs; i++) {
     input_tensor0 = matmul_v2_dygraph_function(
-        input_tensor0, Y, false /*trans_x*/, false /*trans_y*/, {}/*fused_reshape_Out*/, {}/*fused_transpose_Out*/,
+        input_tensor0, Y, false /*trans_x*/, false /*trans_y*/,
+        {} /*fused_reshape_Out*/, {} /*fused_transpose_Out*/,
         false /*use_mkldnn*/, "float32" /*mkldnn_data_type*/, 0 /*op_role*/,
         {} /*op_role_var*/, "" /*op_namescope*/, {} /*op_callstack*/,
         "" /*op_device*/, false /*with_quant_attr*/, true /*trace_backward*/);
@@ -107,17 +139,20 @@ void benchmark_eager_intermediate_matmul(const EagerTensor& X,
 /* -------------------------------- */
 /* ---- Eager Intermediate MLP ---- */
 /* -------------------------------- */
-void benchmark_eager_intermediate_mlp(const EagerTensor& X, const EagerTensor& W1,
+void benchmark_eager_intermediate_mlp(const EagerTensor& X,
+                                      const EagerTensor& W1,
                                       const EagerTensor& W2,
                                       bool accuracy_check) {
   EagerTensor Out1 = matmul_v2_dygraph_function(
-      X, W1, false /*trans_x*/, false /*trans_y*/, {}/*fused_reshape_Out*/, {}/*fused_transpose_Out*/, false /*use_mkldnn*/,
+      X, W1, false /*trans_x*/, false /*trans_y*/, {} /*fused_reshape_Out*/,
+      {} /*fused_transpose_Out*/, false /*use_mkldnn*/,
       "float32" /*mkldnn_data_type*/, 0 /*op_role*/, {} /*op_role_var*/,
       "" /*op_namescope*/, {} /*op_callstack*/, "" /*op_device*/,
       false /*with_quant_attr*/, true /*trace_backward*/);
 
   EagerTensor Out2 = matmul_v2_dygraph_function(
-      Out1, W2, false /*trans_x*/, false /*trans_y*/, {}/*fused_reshape_Out*/, {}/*fused_transpose_Out*/, false /*use_mkldnn*/,
+      Out1, W2, false /*trans_x*/, false /*trans_y*/, {} /*fused_reshape_Out*/,
+      {} /*fused_transpose_Out*/, false /*use_mkldnn*/,
       "float32" /*mkldnn_data_type*/, 0 /*op_role*/, {} /*op_role_var*/,
       "" /*op_namescope*/, {} /*op_callstack*/, "" /*op_device*/,
       false /*with_quant_attr*/, true /*trace_backward*/);

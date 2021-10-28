@@ -21,12 +21,6 @@ limitations under the License. */
 #include "paddle/pten/core/kernel_registry.h"
 #include "paddle/pten/kernels/cuda/utils.h"
 
-PT_DECLARE_MODULE(ReduceCPU);
-
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
-PT_DECLARE_MODULE(ReduceCUDA);
-#endif
-
 namespace framework = paddle::framework;
 using DDim = paddle::framework::DDim;
 
@@ -34,9 +28,9 @@ TEST(API, reduce_sum_cpu) {
   // 1. create tensor
   auto dense_x = std::make_shared<pten::DenseTensor>(
       pten::TensorMeta(framework::make_ddim({10, 10}),
-                     pten::Backend::CPU,
-                     pten::DataType::FLOAT32,
-                     pten::DataLayout::NCHW),
+                       pten::Backend::CPU,
+                       pten::DataType::FLOAT32,
+                       pten::DataLayout::NCHW),
       pten::TensorStatus());
   auto* dense_x_data = dense_x->mutable_data<float>();
 
@@ -70,9 +64,9 @@ TEST(API, reduce_sum_cpu) {
 TEST(API, reduce_sum_cuda) {
   // Prepare CPU Dense Tensor
   pten::TensorMeta ref_x_meta = pten::TensorMeta(framework::make_ddim({10, 10}),
-                                             pten::Backend::CPU,
-                                             pten::DataType::FLOAT32,
-                                             pten::DataLayout::NCHW);
+                                                 pten::Backend::CPU,
+                                                 pten::DataType::FLOAT32,
+                                                 pten::DataLayout::NCHW);
 
   auto ref_x =
       std::make_shared<pten::DenseTensor>(ref_x_meta, pten::TensorStatus());
@@ -87,9 +81,9 @@ TEST(API, reduce_sum_cuda) {
   // 1. create tensor
   auto dense_x = std::make_shared<pten::DenseTensor>(
       pten::TensorMeta(framework::make_ddim({10, 10}),
-                     pten::Backend::CUDA,
-                     pten::DataType::FLOAT32,
-                     pten::DataLayout::NCHW),
+                       pten::Backend::CUDA,
+                       pten::DataType::FLOAT32,
+                       pten::DataLayout::NCHW),
       pten::TensorStatus());
 
   auto& pool = paddle::platform::DeviceContextPool::Instance();
@@ -117,9 +111,9 @@ TEST(API, reduce_sum_cuda) {
   auto dense_out = std::dynamic_pointer_cast<pten::DenseTensor>(out.impl());
 
   pten::TensorMeta out_meta = pten::TensorMeta(out.shape(),
-                                           pten::Backend::CPU,
-                                           pten::DataType::FLOAT32,
-                                           pten::DataLayout::NCHW);
+                                               pten::Backend::CPU,
+                                               pten::DataType::FLOAT32,
+                                               pten::DataLayout::NCHW);
   auto ref_out =
       std::make_shared<pten::DenseTensor>(out_meta, pten::TensorStatus());
   pten::Copy(*dev_ctx, *dense_out.get(), ref_out.get());

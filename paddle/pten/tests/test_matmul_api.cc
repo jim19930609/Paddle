@@ -21,31 +21,27 @@ limitations under the License. */
 #include "paddle/pten/core/kernel_registry.h"
 #include "paddle/pten/kernels/cuda/utils.h"
 
-PT_DECLARE_MODULE(LinalgCPU);
-
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
-PT_DECLARE_MODULE(LinalgCUDA);
-#endif
-
 namespace framework = paddle::framework;
 using DDim = paddle::framework::DDim;
 
 TEST(API, matmul_cpu) {
   // 1. create tensor
   pten::TensorMeta x_meta = pten::TensorMeta(framework::make_ddim({3, 3}),
-                                         pten::Backend::CPU,
-                                         pten::DataType::FLOAT32,
-                                         pten::DataLayout::NCHW);
+                                             pten::Backend::CPU,
+                                             pten::DataType::FLOAT32,
+                                             pten::DataLayout::NCHW);
 
-  auto dense_x = std::make_shared<pten::DenseTensor>(x_meta, pten::TensorStatus());
+  auto dense_x =
+      std::make_shared<pten::DenseTensor>(x_meta, pten::TensorStatus());
   auto* dense_x_data = dense_x->mutable_data<float>();
 
   pten::TensorMeta y_meta = pten::TensorMeta(framework::make_ddim({3, 3}),
-                                         pten::Backend::CPU,
-                                         pten::DataType::FLOAT32,
-                                         pten::DataLayout::NCHW);
+                                             pten::Backend::CPU,
+                                             pten::DataType::FLOAT32,
+                                             pten::DataLayout::NCHW);
 
-  auto dense_y = std::make_shared<pten::DenseTensor>(y_meta, pten::TensorStatus());
+  auto dense_y =
+      std::make_shared<pten::DenseTensor>(y_meta, pten::TensorStatus());
   auto* dense_y_data = dense_y->mutable_data<float>();
 
   for (size_t i = 0; i < 9; ++i) {
@@ -79,18 +75,18 @@ TEST(API, matmul_cpu) {
 TEST(API, matmul_cuda) {
   // Prepare CPU Dense Tensor
   pten::TensorMeta ref_x_meta = pten::TensorMeta(framework::make_ddim({3, 3}),
-                                             pten::Backend::CPU,
-                                             pten::DataType::FLOAT32,
-                                             pten::DataLayout::NCHW);
+                                                 pten::Backend::CPU,
+                                                 pten::DataType::FLOAT32,
+                                                 pten::DataLayout::NCHW);
 
   auto ref_x =
       std::make_shared<pten::DenseTensor>(ref_x_meta, pten::TensorStatus());
   auto* ref_x_data = ref_x->mutable_data<float>();
 
   pten::TensorMeta ref_y_meta = pten::TensorMeta(framework::make_ddim({3, 3}),
-                                             pten::Backend::CPU,
-                                             pten::DataType::FLOAT32,
-                                             pten::DataLayout::NCHW);
+                                                 pten::Backend::CPU,
+                                                 pten::DataType::FLOAT32,
+                                                 pten::DataLayout::NCHW);
 
   auto ref_y =
       std::make_shared<pten::DenseTensor>(ref_y_meta, pten::TensorStatus());
@@ -104,15 +100,17 @@ TEST(API, matmul_cuda) {
 
   // 1. create tensor
   pten::TensorMeta x_meta = pten::TensorMeta(framework::make_ddim({3, 3}),
-                                         pten::Backend::CUDA,
-                                         pten::DataType::FLOAT32,
-                                         pten::DataLayout::NCHW);
-  auto dense_x = std::make_shared<pten::DenseTensor>(x_meta, pten::TensorStatus());
+                                             pten::Backend::CUDA,
+                                             pten::DataType::FLOAT32,
+                                             pten::DataLayout::NCHW);
+  auto dense_x =
+      std::make_shared<pten::DenseTensor>(x_meta, pten::TensorStatus());
   pten::TensorMeta y_meta = pten::TensorMeta(framework::make_ddim({3, 3}),
-                                         pten::Backend::CUDA,
-                                         pten::DataType::FLOAT32,
-                                         pten::DataLayout::NCHW);
-  auto dense_y = std::make_shared<pten::DenseTensor>(y_meta, pten::TensorStatus());
+                                             pten::Backend::CUDA,
+                                             pten::DataType::FLOAT32,
+                                             pten::DataLayout::NCHW);
+  auto dense_y =
+      std::make_shared<pten::DenseTensor>(y_meta, pten::TensorStatus());
 
   auto& pool = paddle::platform::DeviceContextPool::Instance();
   auto place = paddle::platform::CUDAPlace();
@@ -139,9 +137,9 @@ TEST(API, matmul_cuda) {
   auto dense_out = std::dynamic_pointer_cast<pten::DenseTensor>(out.impl());
 
   pten::TensorMeta out_meta = pten::TensorMeta(out.shape(),
-                                           pten::Backend::CPU,
-                                           pten::DataType::FLOAT32,
-                                           pten::DataLayout::NCHW);
+                                               pten::Backend::CPU,
+                                               pten::DataType::FLOAT32,
+                                               pten::DataLayout::NCHW);
   auto ref_out =
       std::make_shared<pten::DenseTensor>(out_meta, pten::TensorStatus());
   pten::Copy(*dev_ctx, *dense_out.get(), ref_out.get());

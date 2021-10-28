@@ -23,8 +23,15 @@ limitations under the License. */
 #include "paddle/pten/core/convert_utils.h"
 #include "paddle/pten/core/dense_tensor.h"
 #include "paddle/pten/core/kernel_context.h"
+#include "paddle/pten/core/kernel_registry.h"
 #include "paddle/pten/hapi/lib/kernel_dispatch.h"
 #include "paddle/pten/infershape/unary.h"
+
+PT_DECLARE_MODULE(GradReduceCPU);
+
+#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+PT_DECLARE_MODULE(GradReduceCUDA);
+#endif
 
 namespace paddle {
 namespace experimental {
@@ -68,8 +75,8 @@ Tensor grad_reduce_sum(const Tensor& x,
   // 5. Prepare outputs
   Tensor grad_x;
 
-  auto dense_grad_x =
-      std::make_shared<pten::DenseTensor>(dense_x->meta(), pten::TensorStatus());
+  auto dense_grad_x = std::make_shared<pten::DenseTensor>(dense_x->meta(),
+                                                          pten::TensorStatus());
 
   // TODO(chenweihang): deal with multiple outputs
   kernel_context.EmplaceBackOutput(dense_grad_x);

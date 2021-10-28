@@ -1,4 +1,4 @@
-#add_subdirectory(benchmark)
+add_subdirectory(benchmark)
 
 cc_test(test_egr_autocodegen SRCS generated_test.cc DEPS ${eager_deps} ${fluid_deps} ${generated_deps})
 
@@ -8,3 +8,4 @@ cc_test(test_egr_forward SRCS forward_test.cc DEPS ${eager_deps} ${fluid_deps})
 cc_test(test_egr_hook SRCS hook_test.cc DEPS ${eager_deps} ${fluid_deps})
 cc_test(test_egr_cross_batch_accumulation SRCS cross_batch_accumulation_test.cc DEPS ${eager_deps} ${fluid_deps})
 cc_test(test_egr_fwd_bwd_joint SRCS fwd_bwd_joint_test.cc DEPS ${eager_deps} ${fluid_deps})
+cc_test(test_egr_kernel_accuracy SRCS kernel_accuracy_test.cc DEPS ${eager_deps} ${fluid_deps})

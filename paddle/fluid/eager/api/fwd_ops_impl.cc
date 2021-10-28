@@ -26,8 +26,9 @@
 
 #include "paddle/fluid/eager/autograd_meta.h"
 
-#include "paddle/fluid/eager/nodes/scale_node.h"
 #include "paddle/fluid/eager/nodes/matmul_v2_node.h"
+#include "paddle/fluid/eager/nodes/reduce_sum_node.h"
+#include "paddle/fluid/eager/nodes/scale_node.h"
 
 #include "paddle/fluid/eager/eager_tensor.h"
 #include "paddle/fluid/eager/function_api.h"
@@ -99,11 +100,12 @@ egr::EagerTensor scale(const egr::EagerTensor& x, float scale, float bias,
   return out;
 }
 
-egr::EagerTensor matmul(const egr::EagerTensor& x, const egr::EagerTensor& y, 
-                        bool transpose_x, bool transpose_y, bool trace_backward) {
+egr::EagerTensor matmul(const egr::EagerTensor& x, const egr::EagerTensor& y,
+                        bool transpose_x, bool transpose_y,
+                        bool trace_backward) {
   // 1. Run Forward
   egr::EagerTensor out;
-  
+
   const std::shared_ptr<paddle::experimental::Tensor>& x_tensor = x.Tensor();
   const std::shared_ptr<paddle::experimental::Tensor>& y_tensor = y.Tensor();
   PADDLE_ENFORCE(x_tensor != nullptr,
@@ -112,7 +114,8 @@ egr::EagerTensor matmul(const egr::EagerTensor& x, const egr::EagerTensor& y,
   PADDLE_ENFORCE(y_tensor != nullptr,
                  paddle::platform::errors::Fatal(
                      "Underlying member \"tensor_\" of Input Y is Null"));
-  paddle::experimental::Tensor out_tensor = paddle::experimental::matmul(*x_tensor.get(), *y_tensor.get(), transpose_x, transpose_y);
+  paddle::experimental::Tensor out_tensor = paddle::experimental::matmul(
+      *x_tensor.get(), *y_tensor.get(), transpose_x, transpose_y);
   out.set_tensor(std::make_shared<paddle::experimental::Tensor>(out_tensor));
 
   // 2. Build Backward Depends
@@ -129,7 +132,8 @@ egr::EagerTensor matmul(const egr::EagerTensor& x, const egr::EagerTensor& y,
   // TODO(zhanlve): which one is more efficient:
   //                1. construct a vector of pointers
   //                2. call "ComputeRequireGrad" multiple times
-  bool require_any_grad = ComputeRequireGrad(trace_backward, p_autograd_x, p_autograd_y);
+  bool require_any_grad =
+      ComputeRequireGrad(trace_backward, p_autograd_x, p_autograd_y);
   if (require_any_grad) {
     PassStopGradient(false /*generate_grad*/, p_autograd_out);
 
@@ -145,8 +149,9 @@ egr::EagerTensor matmul(const egr::EagerTensor& x, const egr::EagerTensor& y,
     **/
 
     // Init GradNode
-    auto matmul_node = std::make_shared<GradNodeMatmul>(/* bwd_in_slot_num */ 1,
-                                                        /* bwd_out_slot_num */ 2);
+    auto matmul_node =
+        std::make_shared<GradNodeMatmul>(/* bwd_in_slot_num */ 1,
+                                         /* bwd_out_slot_num */ 2);
 
     // Pass Attributes to GradNode
     matmul_node->SetAttributes_transpose_x(transpose_x);
@@ -172,6 +177,51 @@ egr::EagerTensor matmul(const egr::EagerTensor& x, const egr::EagerTensor& y,
   }
 
   return out;
+}
+
+egr::EagerTensor reduce_sum(const egr::EagerTensor& x,
+                            const std::vector<int>& dim, const bool keep_dim,
+                            const bool reduce_all, const int in_dtype,
+                            const int out_dtype, bool trace_backward) {
+  // 1. Run Forward
+  egr::EagerTensor Out;
+
+  const std::shared_ptr<paddle::experimental::Tensor>& x_tensor = x.Tensor();
+  PADDLE_ENFORCE(x_tensor != nullptr,
+                 paddle::platform::errors::Fatal(
+                     "Underlying member \"tensor_\" of Input X is Null"));
+  paddle::experimental::Tensor out_tensor = paddle::experimental::reduce_sum(
+      *x_tensor.get(), reduce_all, dim, keep_dim, out_dtype);
+  Out.set_tensor(std::make_shared<paddle::experimental::Tensor>(out_tensor));
+
+  // Prepare Autograd Meta
+  egr::AutogradMeta& p_autograd_X = *egr::EagerUtils::unsafe_autograd_meta(x);
+  egr::AutogradMeta& p_autograd_Out = *egr::EagerUtils::autograd_meta(&Out);
+
+  bool require_any_grad =
+      egr::ComputeRequireGrad(trace_backward, &p_autograd_X);
+  if (require_any_grad) {
+    egr::PassStopGradient(false, &p_autograd_Out);
+    // Create GradOpNode
+    auto grad_node = std::make_shared<GradNodeReduceSum>(1, 1);
+
+    // Set Attributes
+    grad_node->SetAttributes_in_dtype(in_dtype);
+    grad_node->SetAttributes_reduce_all(reduce_all);
+    grad_node->SetAttributes_dim(dim);
+
+    // Set Tensor Wrappers
+    grad_node->SetTensorWrapperX(x);
+    grad_node->SetTensorWrapperOut(Out);
+
+    grad_node->SetGradOutMeta(p_autograd_X, 0);
+    grad_node->AddEdges(p_autograd_X, 0);
+    grad_node->SetGradInMeta(p_autograd_Out, 0);
+    egr::EagerUtils::SetOutRankWithSlot(&p_autograd_Out, 0);
+    egr::EagerUtils::SetHistory(&p_autograd_Out, grad_node);
+  }
+
+  return Out;
 }
 
 }  // namespace egr

@@ -66,15 +66,13 @@ TensorMeta GenericReductionInferShape(const TensorMeta& x_meta,
 
   sort(dims.begin(), dims.end());
 
-  TensorMeta return_meta(
-      x_meta.dims, x_meta.backend, x_meta.type, x_meta.layout, x_meta.offset);
-
+  LoD out_lod;
+  DDim out_dims;
   if (reduce_all) {
     if (keep_dim)
-      return_meta.dims =
-          paddle::framework::make_ddim(std::vector<int64_t>(x_rank, 1));
+      out_dims = paddle::framework::make_ddim(std::vector<int64_t>(x_rank, 1));
     else
-      return_meta.dims = paddle::framework::make_ddim({1});
+      out_dims = paddle::framework::make_ddim({1});
 
   } else {
     auto dims_vector = vectorize(x_dims);
@@ -94,13 +92,16 @@ TensorMeta GenericReductionInferShape(const TensorMeta& x_meta,
     if (!keep_dim && dims_vector.size() == 0) {
       dims_vector.push_back(1);
     }
-    auto out_dims = paddle::framework::make_ddim(dims_vector);
-    return_meta.dims = out_dims;
+    out_dims = paddle::framework::make_ddim(dims_vector);
     if (dims.size() > 0 && dims[0] != 0) {
       // Only pass LoD when not reducing on the first dim.
-      return_meta.lod = x_meta.lod;
+      out_lod = x_meta.lod;
     }
   }
+
+  TensorMeta return_meta(
+      out_dims, x_meta.backend, x_meta.type, x_meta.layout, x_meta.offset);
+  return_meta.lod = out_lod;
 
   return return_meta;
 }

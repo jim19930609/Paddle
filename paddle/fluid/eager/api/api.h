@@ -28,7 +28,12 @@ void RetainGradForTensor(const egr::EagerTensor& tensor);
 
 egr::EagerTensor scale(const egr::EagerTensor& x, float scale, float bias,
                        bool bias_after_scale, bool trace_backward);
-egr::EagerTensor matmul(const egr::EagerTensor& x, const egr::EagerTensor& y, 
-                        bool transpose_x, bool transpose_y, bool trace_backward);
+egr::EagerTensor matmul(const egr::EagerTensor& x, const egr::EagerTensor& y,
+                        bool transpose_x, bool transpose_y,
+                        bool trace_backward);
+egr::EagerTensor reduce_sum(const egr::EagerTensor& x,
+                            const std::vector<int>& dim, const bool keep_dim,
+                            const bool reduce_all, const int in_dtype,
+                            const int out_dtype, bool trace_backward);
 
 }  // namespace egr

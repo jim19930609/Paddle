@@ -23,8 +23,15 @@ limitations under the License. */
 #include "paddle/pten/core/convert_utils.h"
 #include "paddle/pten/core/dense_tensor.h"
 #include "paddle/pten/core/kernel_context.h"
+#include "paddle/pten/core/kernel_registry.h"
 #include "paddle/pten/hapi/lib/kernel_dispatch.h"
 #include "paddle/pten/infershape/binary.h"
+
+PT_DECLARE_MODULE(GradLinalgCPU);
+
+#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+PT_DECLARE_MODULE(GradLinalgCUDA);
+#endif
 
 namespace paddle {
 namespace experimental {
@@ -61,10 +68,10 @@ std::vector<Tensor> grad_matmul(const Tensor& x,
   Tensor grad_x_out;
   Tensor grad_y_out;
   // TODO(chenweihang): deal with multiple outputs
-  auto dense_grad_x_out =
-      std::make_shared<pten::DenseTensor>(dense_x->meta(), pten::TensorStatus());
-  auto dense_grad_y_out =
-      std::make_shared<pten::DenseTensor>(dense_y->meta(), pten::TensorStatus());
+  auto dense_grad_x_out = std::make_shared<pten::DenseTensor>(
+      dense_x->meta(), pten::TensorStatus());
+  auto dense_grad_y_out = std::make_shared<pten::DenseTensor>(
+      dense_y->meta(), pten::TensorStatus());
 
   kernel_context.EmplaceBackOutput(dense_grad_x_out);
   kernel_context.EmplaceBackOutput(dense_grad_y_out);

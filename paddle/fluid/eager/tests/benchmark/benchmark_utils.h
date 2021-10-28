@@ -25,6 +25,9 @@ void benchmark_eager_scale(const EagerTensor& tensor,
                            bool accuracy_check = false);
 
 /* ---- Eager MatMul ---- */
+void benchmark_eager_matmul(const EagerTensor& X, const EagerTensor& Y,
+                            bool accuracy_check = false);
+
 void benchmark_eager_intermediate_matmul(const EagerTensor& X,
                                          const EagerTensor& Y,
                                          bool accuracy_check = false);
