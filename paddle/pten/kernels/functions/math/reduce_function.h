@@ -19,13 +19,10 @@ limitations under the License. */
 
 #include "paddle/pten/core/convert_utils.h"
 #include "paddle/pten/core/dense_tensor.h"
-#include "paddle/pten/kernels/functions/eigen/common.h"
-#include "paddle/pten/kernels/functions/math/transform_function.h"
 #include "paddle/pten/kernels/cuda/utils.h"
-
-#if defined(__NVCC__) || defined(__HIPCC__)
-#include "paddle/fluid/operators/reduce_ops/cub_reduce.h"
-#endif
+#include "paddle/pten/kernels/functions/eigen/common.h"
+#include "paddle/pten/kernels/functions/math/reduce_function.cu.h"
+#include "paddle/pten/kernels/functions/math/transform_function.h"
 
 namespace pten {
 namespace math {
@@ -36,105 +33,6 @@ struct SumFunctor {
     y->device(place) = x->sum(dim);
   }
 };
-
-#if defined(__NVCC__) || defined(__HIPCC__)
-template <typename Tx, typename Ty, typename ReduceOp, typename TransformOp>
-void TensorReduce(const paddle::platform::CUDADeviceContext& dev_ctx,
-                  const DenseTensor& x,
-                  DenseTensor* y,
-                  std::vector<int> origin_reduce_dims,
-                  const Ty& init,
-                  const ReduceOp& reducer,
-                  const TransformOp& transformer) {
-  cudaStream_t stream = dev_ctx.stream();
-
-  auto x_dim = paddle::framework::vectorize<int>(x.dims());
-  std::vector<int> new_x_dim, new_reduce_dims;
-  int is_reduced = 0;
-  for (auto e : origin_reduce_dims) {
-    auto pos = e >= 0 ? e : e + x_dim.size();
-    is_reduced |= 1 << e;
-  }
-  for (int i = 0; i < x_dim.size(); i++) {
-    if ((i == 0) || (((is_reduced >> i) ^ (is_reduced >> (i - 1))) & 1)) {
-      new_x_dim.push_back(x_dim[i]);
-      if ((is_reduced >> i) & 1)
-        new_reduce_dims.push_back(new_x_dim.size() - 1);
-    } else {
-      new_x_dim[new_x_dim.size() - 1] *= x_dim[i];
-    }
-  }
-  x_dim = new_x_dim;
-  origin_reduce_dims = new_reduce_dims;
-  int x_rank = static_cast<int>(x_dim.size());
-  std::set<int> left_set, reduce_set;
-  for (int i = 0; i < x_rank; ++i) left_set.insert(i);
-
-  for (auto e : origin_reduce_dims) {
-    left_set.erase(e);
-    reduce_set.insert(e);
-  }
-
-  std::vector<int> reduce_dim(reduce_set.begin(), reduce_set.end());
-  std::vector<int> left_dim(left_set.begin(), left_set.end());
-
-  std::vector<int> x_strides = paddle::operators::detail::GetStrides(x_dim);
-  std::vector<int> reduce_strides =
-      paddle::operators::detail::GetStrides(x_dim, reduce_dim);
-  std::vector<int> left_strides =
-      paddle::operators::detail::GetStrides(x_dim, left_dim);
-  int reduce_num = reduce_strides[0] * x_dim[reduce_dim[0]];
-  int left_num = 1;
-  if (left_dim.size()) left_num = left_strides[0] * x_dim[left_dim[0]];
-
-  std::vector<int> y_dim(left_dim.size());
-  for (int i = 0; i < left_dim.size(); ++i) {
-    y_dim[i] = x_dim[left_dim[i]];
-  }
-  auto x_data = x.data<Tx>();
-  auto y_data = y->mutable_data<Ty>();
-  if (reduce_num == 1) {
-    auto out_dims = y->dims();
-    pten::Copy(dev_ctx, x, y);
-    y->Resize(out_dims);
-    return;
-  }
-
-#define CUB_BLOCK_DIM_CASE(block_dim)                               \
-  case block_dim: {                                                 \
-    constexpr auto kBlockDim = block_dim;                           \
-    paddle::operators::detail::                                     \
-        TensorReduceImpl<Tx, Ty, block_dim, ReduceOp, TransformOp>( \
-            x_data,                                                 \
-            y_data,                                                 \
-            x.place(),                                              \
-            reducer,                                                \
-            transformer,                                            \
-            init,                                                   \
-            left_num,                                               \
-            reduce_num,                                             \
-            x_strides,                                              \
-            reduce_dim,                                             \
-            reduce_strides,                                         \
-            left_dim,                                               \
-            left_strides,                                           \
-            stream);                                                \
-  } break
-
-  switch (paddle::operators::detail::GetDesiredBlockDim(reduce_num)) {
-    CUB_BLOCK_DIM_CASE(512);
-    CUB_BLOCK_DIM_CASE(256);
-    CUB_BLOCK_DIM_CASE(128);
-    CUB_BLOCK_DIM_CASE(64);
-    CUB_BLOCK_DIM_CASE(32);
-    CUB_BLOCK_DIM_CASE(16);
-    CUB_BLOCK_DIM_CASE(8);
-    CUB_BLOCK_DIM_CASE(4);
-    CUB_BLOCK_DIM_CASE(2);
-  }
-#undef CUB_BLOCK_DIM_CASE
-}
-#endif
 
 template <typename DeviceContext,
           typename T,
@@ -350,4 +248,4 @@ void ReduceKernel(const DeviceContext& dev_ctx,
 }
 
 }  // namespace math
-}  // namespace pt
+}  // namespace pten

@@ -1,3 +1,3 @@
 add_subdirectory(lib)
 
-cc_library(pten_hapi SRCS all.cc DEPS math_api linalg_api creation_api reduce_api grad_linalg_api grad_reduce_api)
+cc_library(pten_hapi SRCS all.cc DEPS math_api linalg_api creation_api reduce_api grad_linalg_api grad_reduce_api elementwise_api grad_elementwise_api)

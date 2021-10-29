@@ -6,5 +6,7 @@ cc_library(creation_api SRCS creation.cc DEPS pten)
 cc_library(manipulation_api SRCS manipulation.cc DEPS pten)
 
 cc_library(reduce_api SRCS reduce.cc DEPS pten)
+cc_library(elementwise_api SRCS elementwise.cc DEPS pten)
+cc_library(grad_elementwise_api SRCS grad_elementwise.cc DEPS pten)
 cc_library(grad_linalg_api SRCS grad_linalg.cc DEPS pten)
 cc_library(grad_reduce_api SRCS grad_reduce.cc DEPS pten)

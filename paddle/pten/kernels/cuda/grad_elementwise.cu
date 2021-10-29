@@ -1,4 +1,4 @@
-//   Copyright (c) 2021 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2021 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,39 +12,43 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "paddle/pten/kernels/cuda/grad_elementwise.h"
+
+#include "paddle/pten/core/kernel_registry.h"
+
+// See Note [ Why still include the fluid headers? ]
+#include "paddle/fluid/framework/eigen.h"
+// #include "paddle/fluid/operators/math/blas.h"
 #include "paddle/fluid/platform/complex.h"
-#include "paddle/pten/kernels/functions/math/reduce_function.cu.h"
+#include "paddle/pten/kernels/functions/math/grad_elementwise_function.h"
 
 namespace pten {
 
 template <typename T>
-void ReduceSum(const CUDAContext& dev_ctx,
-               const DenseTensor& x,
-               bool reduce_all,
-               const std::vector<int>& dim,
-               bool keep_dim,
-               int out_dtype,
-               DenseTensor* out) {
-  math::ReduceSumCudaKernel<T, math::CustomSum>(
-      dev_ctx, x, reduce_all, dim, keep_dim, out_dtype, out);
+void GradElementwiseAdd(const CUDAContext& dev_ctx,
+                        const DenseTensor& X,
+                        const DenseTensor& Y,
+                        const DenseTensor& GradOut,
+                        int axis,
+                        DenseTensor* GradX,
+                        DenseTensor* GradY) {
+  math::ElementwiseAddGradFunction<CUDAContext, T>(
+      dev_ctx, X, Y, GradOut, axis, GradX, GradY);
 }
 
-}  // namespace pt
+}  // namespace pten
 
-// TODO(chenweihang): replace by better impl
-PT_REGISTER_MODULE(ReduceCUDA);
+PT_REGISTER_MODULE(GradElementwiseCUDA);
 
 using complex64 = ::paddle::platform::complex<float>;
 using complex128 = ::paddle::platform::complex<double>;
 
-PT_REGISTER_KERNEL("reduce_sum",
+PT_REGISTER_KERNEL("grad_elementwise_add",
                    CUDA,
                    ANY,
-                   pten::ReduceSum,
-                   bool,
+                   pten::GradElementwiseAdd,
                    float,
                    double,
-                   paddle::platform::float16,
                    int,
                    int64_t,
                    complex64,

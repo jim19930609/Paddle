@@ -826,4 +826,4 @@ void GradMatMulFunction(const DeviceContext& dev_ctx,
 }
 
 }  // namespace math
-}  // namespace pt
+}  // namespace pten

@@ -489,4 +489,4 @@ void MatMulFunction(const DeviceContext& dev_ctx,
 }
 
 }  // namespace math
-}  // namespace pt
+}  // namespace pten

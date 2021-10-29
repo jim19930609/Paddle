@@ -14,6 +14,7 @@
 
 #pragma once
 
+// CUDA and HIP use same api
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 
 #include "paddle/pten/core/dense_tensor.h"
@@ -26,14 +27,13 @@ namespace pten {
 using CUDAContext = paddle::platform::CUDADeviceContext;
 
 template <typename T>
-void GradMatmul(const CUDAContext& dev_ctx,
-                const DenseTensor& X,
-                const DenseTensor& Y,
-                const DenseTensor& GradOut,
-                bool transpose_x,
-                bool transpose_y,
-                DenseTensor* GradX,
-                DenseTensor* GradY);
+void GradElementwiseAdd(const CUDAContext& dev_ctx,
+                        const DenseTensor& X,
+                        const DenseTensor& Y,
+                        const DenseTensor& GradOut,
+                        int axis,
+                        DenseTensor* GradX,
+                        DenseTensor* GradY);
 
 }  // namespace pten
 #endif

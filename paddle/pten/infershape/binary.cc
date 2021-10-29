@@ -14,6 +14,7 @@ limitations under the License. */
 
 // See Note [ Why still include the fluid headers? ]
 #include "paddle/pten/infershape/binary.h"
+#include "paddle/fluid/operators/elementwise/elementwise_op_function.h"
 
 namespace pten {
 
@@ -134,6 +135,58 @@ TensorMeta MatmulInferShape(const TensorMeta& x_meta,
   auto out_dims = paddle::framework::make_ddim(new_dims);
   TensorMeta return_meta(
       out_dims, x_meta.backend, x_meta.type, x_meta.layout, x_meta.offset);
+
+  return return_meta;
+}
+
+TensorMeta ElementwiseInferShape(const TensorMeta& x_meta,
+                                 const TensorMeta& y_meta,
+                                 int axis) {
+  if (x_meta.dims == y_meta.dims) {
+    return TensorMeta(x_meta);
+  }
+
+  auto x_dims = x_meta.dims;
+  auto y_dims = y_meta.dims;
+  int max_dim = std::max(x_dims.size(), y_dims.size());
+  if (x_dims.size() == y_dims.size()) {
+    PADDLE_ENFORCE_EQ((axis == -1) || (axis == 0),
+                      true,
+                      paddle::platform::errors::InvalidArgument(
+                          "axis should be -1 or 0 while the dimension of "
+                          "tensor X (%s) is equal to the dimension of "
+                          "tensor Y (%s), but received axis: %s",
+                          x_dims.size(),
+                          y_dims.size(),
+                          axis));
+  }
+  PADDLE_ENFORCE_EQ((axis >= (-1 * max_dim)) && (axis < max_dim),
+                    true,
+                    paddle::platform::errors::InvalidArgument(
+                        "The axis range must be [%s, %s), but axis is %s. "
+                        "Please set the axis again.",
+                        -1 * max_dim,
+                        max_dim,
+                        axis));
+  axis =
+      (axis < 0 ? (std::abs(x_dims.size() - y_dims.size()) + axis + 1) : axis);
+  std::vector<int> x_dims_array(max_dim);
+  std::vector<int> y_dims_array(max_dim);
+  std::vector<int> out_dims_array(max_dim);
+  paddle::operators::GetBroadcastDimsArrays(x_dims,
+                                            y_dims,
+                                            x_dims_array.data(),
+                                            y_dims_array.data(),
+                                            out_dims_array.data(),
+                                            max_dim,
+                                            axis);
+
+  TensorMeta return_meta(paddle::framework::make_ddim(out_dims_array),
+                         x_meta.backend,
+                         x_meta.type,
+                         x_meta.layout,
+                         x_meta.offset);
+  return_meta.lod = x_meta.lod;
 
   return return_meta;
 }

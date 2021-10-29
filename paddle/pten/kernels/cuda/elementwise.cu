@@ -1,4 +1,4 @@
-//   Copyright (c) 2021 PaddlePaddle Authors. All Rights Reserved.
+// Copyright (c) 2021 PaddlePaddle Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,39 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "paddle/pten/kernels/cuda/elementwise.h"
+
+#include "paddle/pten/core/kernel_registry.h"
+
+// See Note [ Why still include the fluid headers? ]
+#include "paddle/fluid/framework/eigen.h"
+// #include "paddle/fluid/operators/math/blas.h"
 #include "paddle/fluid/platform/complex.h"
-#include "paddle/pten/kernels/functions/math/reduce_function.cu.h"
+#include "paddle/pten/kernels/functions/math/elementwise_function.cu.h"
 
 namespace pten {
 
 template <typename T>
-void ReduceSum(const CUDAContext& dev_ctx,
-               const DenseTensor& x,
-               bool reduce_all,
-               const std::vector<int>& dim,
-               bool keep_dim,
-               int out_dtype,
-               DenseTensor* out) {
-  math::ReduceSumCudaKernel<T, math::CustomSum>(
-      dev_ctx, x, reduce_all, dim, keep_dim, out_dtype, out);
+void ElementwiseAdd(const CUDAContext& dev_ctx,
+                    const DenseTensor& x,
+                    const DenseTensor& y,
+                    int axis,
+                    DenseTensor* out) {
+  math::ElementwiseAddFunction<T>(dev_ctx, x, y, axis, out);
 }
 
-}  // namespace pt
+}  // namespace pten
 
-// TODO(chenweihang): replace by better impl
-PT_REGISTER_MODULE(ReduceCUDA);
+PT_REGISTER_MODULE(ElementwiseCUDA);
 
 using complex64 = ::paddle::platform::complex<float>;
 using complex128 = ::paddle::platform::complex<double>;
 
-PT_REGISTER_KERNEL("reduce_sum",
+PT_REGISTER_KERNEL("elementwise_add",
                    CUDA,
                    ANY,
-                   pten::ReduceSum,
-                   bool,
+                   pten::ElementwiseAdd,
                    float,
                    double,
-                   paddle::platform::float16,
                    int,
                    int64_t,
                    complex64,

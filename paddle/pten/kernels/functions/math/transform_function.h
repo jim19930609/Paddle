@@ -98,4 +98,4 @@ DEFINE_CPU_TRANS_NORMAL(paddle::platform::complex<float>);
 DEFINE_CPU_TRANS_NORMAL(paddle::platform::complex<double>);
 
 }  // namespace math
-}  // namespace pt
+}  // namespace pten

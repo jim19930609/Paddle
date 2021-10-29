@@ -14,26 +14,12 @@
 
 #pragma once
 
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+#include "paddle/pten/hapi/include/tensor.h"
 
-#include "paddle/pten/core/dense_tensor.h"
+namespace paddle {
+namespace experimental {
 
-// See Note [ Why still include the fluid headers? ]
-#include "paddle/fluid/platform/device_context.h"
+Tensor elementwise_add(const Tensor& x, const Tensor& y, int axis);
 
-namespace pten {
-
-using CUDAContext = paddle::platform::CUDADeviceContext;
-
-template <typename T>
-void GradMatmul(const CUDAContext& dev_ctx,
-                const DenseTensor& X,
-                const DenseTensor& Y,
-                const DenseTensor& GradOut,
-                bool transpose_x,
-                bool transpose_y,
-                DenseTensor* GradX,
-                DenseTensor* GradY);
-
-}  // namespace pten
-#endif
+}  // namespace experimental
+}  // namespace paddle

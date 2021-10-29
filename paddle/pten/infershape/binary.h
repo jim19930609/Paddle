@@ -31,9 +31,14 @@ namespace pten {
 //  not only can infer shape, but alse need infer lod or other useful data.
 
 TensorMeta DotInferShape(const TensorMeta& x_meta, const TensorMeta& y_meta);
+
 TensorMeta MatmulInferShape(const TensorMeta& x_meta,
                             const TensorMeta& y_meta,
                             bool trans_x,
                             bool trans_y);
+
+TensorMeta ElementwiseInferShape(const TensorMeta& x_meta,
+                                 const TensorMeta& y_meta,
+                                 int axis);
 
 }  // namespace pten

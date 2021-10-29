@@ -15,6 +15,8 @@ limitations under the License. */
 
 #pragma once
 
+#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+
 #include "paddle/pten/core/dense_tensor.h"
 #include "paddle/pten/core/kernel_registry.h"
 
@@ -35,3 +37,4 @@ void ReduceSum(const CUDAContext& dev_ctx,
                DenseTensor* out);
 
 }  // namespace pten
+#endif

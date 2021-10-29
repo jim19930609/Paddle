@@ -14,8 +14,6 @@
 
 #pragma once
 
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
-
 #include "paddle/pten/core/dense_tensor.h"
 
 // See Note [ Why still include the fluid headers? ]
@@ -23,17 +21,15 @@
 
 namespace pten {
 
-using CUDAContext = paddle::platform::CUDADeviceContext;
+using CPUContext = paddle::platform::CPUDeviceContext;
 
 template <typename T>
-void GradMatmul(const CUDAContext& dev_ctx,
-                const DenseTensor& X,
-                const DenseTensor& Y,
-                const DenseTensor& GradOut,
-                bool transpose_x,
-                bool transpose_y,
-                DenseTensor* GradX,
-                DenseTensor* GradY);
+void GradElementwiseAdd(const CPUContext& dev_ctx,
+                        const DenseTensor& X,
+                        const DenseTensor& Y,
+                        const DenseTensor& GradOut,
+                        int axis,
+                        DenseTensor* GradX,
+                        DenseTensor* GradY);
 
 }  // namespace pten
-#endif

@@ -20,10 +20,10 @@ limitations under the License. */
 
 #include "paddle/pten/core/convert_utils.h"
 #include "paddle/pten/core/dense_tensor.h"
-#include "paddle/pten/kernels/functions/eigen/common.h"
-#include "paddle/pten/kernels/functions/math/reduce_function.h"
 #include "paddle/pten/kernels/cpu/utils.h"
 #include "paddle/pten/kernels/cuda/utils.h"
+#include "paddle/pten/kernels/functions/eigen/common.h"
+#include "paddle/pten/kernels/functions/math/reduce_function.h"
 
 namespace pten {
 namespace math {
@@ -472,4 +472,4 @@ struct ReduceSumGradKernel {
 };
 
 }  // namespace math
-}  // namespace pt
+}  // namespace pten
