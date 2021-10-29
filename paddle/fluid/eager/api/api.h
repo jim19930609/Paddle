@@ -36,4 +36,8 @@ egr::EagerTensor reduce_sum(const egr::EagerTensor& x,
                             const bool reduce_all, const int in_dtype,
                             const int out_dtype, bool trace_backward);
 
+egr::EagerTensor elementwise_add(const egr::EagerTensor& x,
+                                 const egr::EagerTensor& y, const int axis,
+                                 bool trace_backward);
+
 }  // namespace egr

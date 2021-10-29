@@ -36,7 +36,7 @@ static std::unordered_set<std::string> operators_to_skip = {
 };
 
 static std::unordered_set<std::string> operators_to_codegen = {
-    "sigmoid", "matmul_v2", "reduce_sum",
+    "sigmoid", "matmul_v2", "reduce_sum", "elementwise_add",
 };
 
 static std::unordered_set<std::string> skipped_operators = {};

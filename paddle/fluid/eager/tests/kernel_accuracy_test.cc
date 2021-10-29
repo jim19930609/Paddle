@@ -66,4 +66,45 @@ TEST(KernelAccuracy, Reduce) {
   }
 }
 
+TEST(KernelAccuracy, ElementwiseAdd) {
+  for (pten::Backend backend : {pten::Backend::CPU, pten::Backend::CUDA}) {
+    if (backend == pten::Backend::CPU) {
+      VLOG(1) << "CPU Backend";
+      egr::InitEnv(paddle::platform::CPUPlace());
+    } else {
+      VLOG(1) << "CUDA Backend";
+      egr::InitEnv(paddle::platform::CUDAPlace());
+    }
+
+    paddle::framework::DDim ddim_X = paddle::framework::make_ddim({10, 10});
+    egr::EagerTensor X = EagerUtils::CreateTensorWithValue(
+        ddim_X, backend, pten::DataType::FLOAT32, pten::DataLayout::NCHW, 1.0,
+        true);
+    RetainGradForTensor(X);
+
+    paddle::framework::DDim ddim_Y = paddle::framework::make_ddim({10, 10});
+    egr::EagerTensor Y = EagerUtils::CreateTensorWithValue(
+        ddim_Y, backend, pten::DataType::FLOAT32, pten::DataLayout::NCHW, 2.0,
+        true);
+    RetainGradForTensor(Y);
+
+    EagerTensor Out =
+        egr::elementwise_add(X, Y, -1 /*axis*/, true /*trace_backward*/);
+
+    std::vector<EagerTensor> target_tensors = {Out};
+    RunBackward(target_tensors, {});
+
+    // Examine Forward Grad (w.r.t max_num_runs = 2)
+    PADDLE_ENFORCE(
+        CompareTensorWithValue<float>(Out, 3.0) == true,
+        paddle::platform::errors::Fatal("Numerical Error, Expected %f", 200.0));
+    PADDLE_ENFORCE(
+        CompareGradTensorWithValue<float>(X, 1.0) == true,
+        paddle::platform::errors::Fatal("Numerical Error, Expected %f", 1.0));
+    PADDLE_ENFORCE(
+        CompareGradTensorWithValue<float>(Y, 1.0) == true,
+        paddle::platform::errors::Fatal("Numerical Error, Expected %f", 1.0));
+  }
+}
+
 }  // namespace egr

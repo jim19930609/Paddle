@@ -26,6 +26,7 @@
 
 #include "paddle/fluid/eager/autograd_meta.h"
 
+#include "paddle/fluid/eager/nodes/elementwise_add_node.h"
 #include "paddle/fluid/eager/nodes/matmul_v2_node.h"
 #include "paddle/fluid/eager/nodes/reduce_sum_node.h"
 #include "paddle/fluid/eager/nodes/scale_node.h"
@@ -222,6 +223,56 @@ egr::EagerTensor reduce_sum(const egr::EagerTensor& x,
   }
 
   return Out;
+}
+
+egr::EagerTensor elementwise_add(const egr::EagerTensor& x,
+                                 const egr::EagerTensor& y, const int axis,
+                                 bool trace_backward) {
+  // 1. Run Forward
+  egr::EagerTensor out;
+
+  const std::shared_ptr<paddle::experimental::Tensor>& x_tensor = x.Tensor();
+  const std::shared_ptr<paddle::experimental::Tensor>& y_tensor = y.Tensor();
+  PADDLE_ENFORCE(x_tensor != nullptr,
+                 paddle::platform::errors::Fatal(
+                     "Underlying member \"tensor_\" of Input X is Null"));
+  PADDLE_ENFORCE(y_tensor != nullptr,
+                 paddle::platform::errors::Fatal(
+                     "Underlying member \"tensor_\" of Input Y is Null"));
+  paddle::experimental::Tensor out_tensor =
+      paddle::experimental::elementwise_add(*x_tensor.get(), *y_tensor.get(),
+                                            axis);
+  out.set_tensor(std::make_shared<paddle::experimental::Tensor>(out_tensor));
+
+  // Prepare Autograd Meta
+  egr::AutogradMeta& p_autograd_X = *egr::EagerUtils::unsafe_autograd_meta(x);
+  egr::AutogradMeta& p_autograd_Y = *egr::EagerUtils::unsafe_autograd_meta(y);
+  egr::AutogradMeta& p_autograd_Out = *egr::EagerUtils::autograd_meta(&out);
+
+  bool require_any_grad =
+      egr::ComputeRequireGrad(trace_backward, &p_autograd_X, &p_autograd_Y);
+  if (require_any_grad) {
+    egr::PassStopGradient(false, &p_autograd_Out);
+    // Create GradOpNode
+    auto grad_node = std::make_shared<GradNodeElementwiseAdd>(1, 2);
+
+    // Set Attributes
+    grad_node->SetAttributes_axis(axis);
+
+    // Set Tensor Wrappers
+    grad_node->SetTensorWrapperX(x);
+    grad_node->SetTensorWrapperY(y);
+
+    grad_node->SetGradOutMeta(p_autograd_X, 0);
+    grad_node->AddEdges(p_autograd_X, 0);
+    grad_node->SetGradOutMeta(p_autograd_Y, 1);
+    grad_node->AddEdges(p_autograd_Y, 1);
+    grad_node->SetGradInMeta(p_autograd_Out, 0);
+    egr::EagerUtils::SetOutRankWithSlot(&p_autograd_Out, 0);
+    egr::EagerUtils::SetHistory(&p_autograd_Out, grad_node);
+  }
+
+  return out;
 }
 
 }  // namespace egr

@@ -75,7 +75,8 @@ int GetVectorizedSizeForTensors(const std::vector<const DenseTensor *> &ins,
   }
   for (auto iter = outs.begin(); iter != outs.end(); ++iter) {
     vec_size = std::min<int>(
-        vec_size, paddle::platform::GetVectorizedSize((*iter)->data<OutT>()));
+        vec_size,
+        paddle::platform::GetVectorizedSize((*iter)->mutable_data<OutT>()));
   }
   return vec_size;
 }
@@ -399,7 +400,7 @@ void LaunchBroadcastElementwiseCudaKernel(
                                             : in_vec_size;
   }
   int out_vec_size =
-      paddle::platform::GetVectorizedSize<OutT>(out->data<OutT>());
+      paddle::platform::GetVectorizedSize<OutT>(out->mutable_data<OutT>());
   int vec_size = std::min(out_vec_size, in_vec_size);
 
   switch (vec_size) {

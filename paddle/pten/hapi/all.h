@@ -16,10 +16,12 @@ limitations under the License. */
 
 // user apis
 #include "paddle/pten/hapi/include/creation.h"
+#include "paddle/pten/hapi/include/elementwise.h"
+#include "paddle/pten/hapi/include/grad_elementwise.h"
+#include "paddle/pten/hapi/include/grad_linalg.h"
+#include "paddle/pten/hapi/include/grad_reduce.h"
 #include "paddle/pten/hapi/include/linalg.h"
 #include "paddle/pten/hapi/include/manipulation.h"
 #include "paddle/pten/hapi/include/math.h"
-#include "paddle/pten/hapi/include/tensor.h"
 #include "paddle/pten/hapi/include/reduce.h"
-#include "paddle/pten/hapi/include/grad_linalg.h"
-#include "paddle/pten/hapi/include/grad_reduce.h"
+#include "paddle/pten/hapi/include/tensor.h"
