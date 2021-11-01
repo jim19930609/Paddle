@@ -99,7 +99,7 @@ TEST(Benchmark, EagerMatmulCUDA) {
 
     } else if (mode == "Performance") {
       auto t_start = std::chrono::high_resolution_clock::now();
-      ProfilerStart("eager_intermediate_matmul_cuda.out");
+      ProfilerStart("eager_matmul_cuda.out");
 
       benchmark_eager_matmul(X, Y);
 
@@ -131,43 +131,37 @@ TEST(Benchmark, EagerMLPCUDA) {
         pten::DataLayout::NCHW, MLP_X_VAL, true);
     RetainGradForTensor(X);
 
-    paddle::framework::DDim ddimW1 =
-        paddle::framework::make_ddim({MLP_N, MLP_K1});
-    egr::EagerTensor W1 = EagerUtils::CreateTensorWithValue(
-        ddimW1, pten::Backend::CUDA, pten::DataType::FLOAT32,
-        pten::DataLayout::NCHW, MLP_W1_VAL, true);
-    RetainGradForTensor(W1);
+    std::vector<EagerTensor> Ws;
+    std::vector<EagerTensor> Bs;
+    for (size_t i = 0; i < MLP_NUM_LINEAR; i++) {
+      paddle::framework::DDim ddimW =
+          paddle::framework::make_ddim({MLP_N, MLP_K});
+      egr::EagerTensor W = EagerUtils::CreateTensorWithValue(
+          ddimW, pten::Backend::CUDA, pten::DataType::FLOAT32,
+          pten::DataLayout::NCHW, MLP_W_VAL, true);
+      RetainGradForTensor(W);
 
-    paddle::framework::DDim ddimW2 =
-        paddle::framework::make_ddim({MLP_K1, MLP_K2});
-    egr::EagerTensor W2 = EagerUtils::CreateTensorWithValue(
-        ddimW2, pten::Backend::CUDA, pten::DataType::FLOAT32,
-        pten::DataLayout::NCHW, MLP_W2_VAL, true);
-    RetainGradForTensor(W2);
+      paddle::framework::DDim ddimB = paddle::framework::make_ddim({MLP_K});
+      egr::EagerTensor B = EagerUtils::CreateTensorWithValue(
+          ddimB, pten::Backend::CUDA, pten::DataType::FLOAT32,
+          pten::DataLayout::NCHW, MLP_B_VAL, true);
+      RetainGradForTensor(B);
 
-    paddle::framework::DDim ddimB1 = paddle::framework::make_ddim({MLP_K1});
-    egr::EagerTensor B1 = EagerUtils::CreateTensorWithValue(
-        ddimB1, pten::Backend::CUDA, pten::DataType::FLOAT32,
-        pten::DataLayout::NCHW, MLP_B1_VAL, true);
-    RetainGradForTensor(B1);
-
-    paddle::framework::DDim ddimB2 = paddle::framework::make_ddim({MLP_K2});
-    egr::EagerTensor B2 = EagerUtils::CreateTensorWithValue(
-        ddimB2, pten::Backend::CUDA, pten::DataType::FLOAT32,
-        pten::DataLayout::NCHW, MLP_B2_VAL, true);
-    RetainGradForTensor(B2);
+      Ws.emplace_back(std::move(W));
+      Bs.emplace_back(std::move(B));
+    }
 
     if (mode == "Accuracy") {
-      benchmark_eager_mlp(X, W1, W2, B1, B2, true /* accuracy_check */);
+      benchmark_eager_mlp(X, Ws, Bs, true /* accuracy_check */);
 
     } else if (mode == "WarmUp") {
-      benchmark_eager_mlp(X, W1, W2, B1, B2);
+      benchmark_eager_mlp(X, Ws, Bs);
 
     } else if (mode == "Performance") {
       auto t_start = std::chrono::high_resolution_clock::now();
-      ProfilerStart("eager_intermediate_matmul_mlp.out");
+      ProfilerStart("eager_mlp_cuda.out");
 
-      benchmark_eager_mlp(X, W1, W2, B1, B2);
+      benchmark_eager_mlp(X, Ws, Bs);
 
       ProfilerStop();
       auto t_end = std::chrono::high_resolution_clock::now();
@@ -242,44 +236,37 @@ TEST(Benchmark, EagerIntermediateMLPCUDA) {
         pten::DataLayout::NCHW, MLP_X_VAL, true);
     RetainGradForTensor(X);
 
-    paddle::framework::DDim ddimW1 =
-        paddle::framework::make_ddim({MLP_N, MLP_K1});
-    egr::EagerTensor W1 = EagerUtils::CreateTensorWithValue(
-        ddimW1, pten::Backend::CUDA, pten::DataType::FLOAT32,
-        pten::DataLayout::NCHW, MLP_W1_VAL, true);
-    RetainGradForTensor(W1);
+    std::vector<EagerTensor> Ws;
+    std::vector<EagerTensor> Bs;
+    for (size_t i = 0; i < MLP_NUM_LINEAR; i++) {
+      paddle::framework::DDim ddimW =
+          paddle::framework::make_ddim({MLP_N, MLP_K});
+      egr::EagerTensor W = EagerUtils::CreateTensorWithValue(
+          ddimW, pten::Backend::CUDA, pten::DataType::FLOAT32,
+          pten::DataLayout::NCHW, MLP_W_VAL, true);
+      RetainGradForTensor(W);
 
-    paddle::framework::DDim ddimW2 =
-        paddle::framework::make_ddim({MLP_K1, MLP_K2});
-    egr::EagerTensor W2 = EagerUtils::CreateTensorWithValue(
-        ddimW2, pten::Backend::CUDA, pten::DataType::FLOAT32,
-        pten::DataLayout::NCHW, MLP_W2_VAL, true);
-    RetainGradForTensor(W2);
+      paddle::framework::DDim ddimB = paddle::framework::make_ddim({MLP_K});
+      egr::EagerTensor B = EagerUtils::CreateTensorWithValue(
+          ddimB, pten::Backend::CUDA, pten::DataType::FLOAT32,
+          pten::DataLayout::NCHW, MLP_B_VAL, true);
+      RetainGradForTensor(B);
 
-    paddle::framework::DDim ddimB1 = paddle::framework::make_ddim({MLP_K1});
-    egr::EagerTensor B1 = EagerUtils::CreateTensorWithValue(
-        ddimB1, pten::Backend::CUDA, pten::DataType::FLOAT32,
-        pten::DataLayout::NCHW, MLP_B1_VAL, true);
-    RetainGradForTensor(B1);
-
-    paddle::framework::DDim ddimB2 = paddle::framework::make_ddim({MLP_K2});
-    egr::EagerTensor B2 = EagerUtils::CreateTensorWithValue(
-        ddimB2, pten::Backend::CUDA, pten::DataType::FLOAT32,
-        pten::DataLayout::NCHW, MLP_B2_VAL, true);
-    RetainGradForTensor(B2);
+      Ws.emplace_back(std::move(W));
+      Bs.emplace_back(std::move(B));
+    }
 
     if (mode == "Accuracy") {
-      benchmark_eager_intermediate_mlp(X, W1, W2, B1, B2,
-                                       true /* accuracy_check */);
+      benchmark_eager_intermediate_mlp(X, Ws, Bs, true /* accuracy_check */);
 
     } else if (mode == "WarmUp") {
-      benchmark_eager_intermediate_mlp(X, W1, W2, B1, B2);
+      benchmark_eager_intermediate_mlp(X, Ws, Bs);
 
     } else if (mode == "Performance") {
       auto t_start = std::chrono::high_resolution_clock::now();
-      ProfilerStart("eager_intermediate_matmul_mlp.out");
+      ProfilerStart("eager_intermediate_mlp_cuda.out");
 
-      benchmark_eager_intermediate_mlp(X, W1, W2, B1, B2);
+      benchmark_eager_intermediate_mlp(X, Ws, Bs);
 
       ProfilerStop();
       auto t_end = std::chrono::high_resolution_clock::now();

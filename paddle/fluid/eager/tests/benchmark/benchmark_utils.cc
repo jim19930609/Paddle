@@ -103,22 +103,21 @@ void benchmark_eager_matmul(const EagerTensor& X, const EagerTensor& Y,
 /* ------------------------- */
 /* ---- Eager Final MLP ---- */
 /* ------------------------- */
-void benchmark_eager_mlp(const EagerTensor& X, const EagerTensor& W1,
-                         const EagerTensor& W2, const EagerTensor& B1,
-                         const EagerTensor& B2, bool accuracy_check) {
-  EagerTensor Out1 = egr::matmul(X, W1, false /*trans_x*/, false /*trans_y*/,
-                                 true /*trace_backward*/);
+void benchmark_eager_mlp(const EagerTensor& X,
+                         const std::vector<EagerTensor>& Ws,
+                         const std::vector<EagerTensor>& Bs,
+                         bool accuracy_check) {
+  EagerTensor input0 = X;
 
-  EagerTensor Out2 =
-      egr::elementwise_add(Out1, B1, -1 /*axis*/, true /*trace_backward*/);
+  for (size_t i = 0; i < MLP_NUM_LINEAR; i++) {
+    EagerTensor Out0 = egr::matmul(input0, Ws[i], false /*trans_x*/,
+                                   false /*trans_y*/, true /*trace_backward*/);
 
-  EagerTensor Out3 = egr::matmul(Out2, W2, false /*trans_x*/, false /*trans_y*/,
-                                 true /*trace_backward*/);
+    input0 =
+        egr::elementwise_add(Out0, Bs[i], -1 /*axis*/, true /*trace_backward*/);
+  }
 
-  EagerTensor Out4 =
-      egr::elementwise_add(Out3, B2, -1 /*axis*/, true /*trace_backward*/);
-
-  EagerTensor Out = egr::reduce_sum(Out4, {0} /*dim*/, false /*keep_dim*/,
+  EagerTensor Out = egr::reduce_sum(input0, {0} /*dim*/, false /*keep_dim*/,
                                     true /*reduce_all*/, -1 /*in_dtype*/,
                                     -1 /*out_dtype*/, true /*trace_backward*/);
 
@@ -134,8 +133,7 @@ void benchmark_eager_mlp(const EagerTensor& X, const EagerTensor& W1,
 
     // Examine Backward Grad (w.r.t max_num_runs = 2)
     CompareGradTensorWithValue<float>(X, result["GradX"]);
-    CompareGradTensorWithValue<float>(W1, result["GradW1"]);
-    CompareGradTensorWithValue<float>(W2, result["GradW2"]);
+    CompareGradTensorWithValue<float>(Ws[0], result["GradW"]);
   }
 }
 
@@ -178,41 +176,31 @@ void benchmark_eager_intermediate_matmul(const EagerTensor& X,
 /* -------------------------------- */
 /* ---- Eager Intermediate MLP ---- */
 /* -------------------------------- */
-void benchmark_eager_intermediate_mlp(
-    const EagerTensor& X, const EagerTensor& W1, const EagerTensor& W2,
-    const EagerTensor& B1, const EagerTensor& B2, bool accuracy_check) {
-  EagerTensor Out1 = matmul_v2_dygraph_function(
-      X, W1, false /*trans_x*/, false /*trans_y*/, {} /*fused_reshape_Out*/,
-      {} /*fused_transpose_Out*/, false /*use_mkldnn*/,
-      "float32" /*mkldnn_data_type*/, 0 /*op_role*/, {} /*op_role_var*/,
-      "" /*op_namescope*/, {} /*op_callstack*/, "" /*op_device*/,
-      false /*with_quant_attr*/, true /*trace_backward*/);
+void benchmark_eager_intermediate_mlp(const EagerTensor& X,
+                                      const std::vector<EagerTensor>& Ws,
+                                      const std::vector<EagerTensor>& Bs,
+                                      bool accuracy_check) {
+  EagerTensor input0 = X;
 
-  EagerTensor Out2 = elementwise_add_dygraph_function(
-      Out1, B1, -1 /*axis*/, false /*use_mkldnn*/, "" /*x_data_format*/,
-      "" /*x_data_format*/, false /*use_quantizer*/,
-      "float32" /*mkldnn_data_type*/, 1.0 /*Scale_x*/, 1.0 /*Scale_y*/,
-      1.0 /*Scale_out*/, 0 /*op_role*/, {} /*op_role_var*/, "" /*op_namescope*/,
-      {} /*op_callstack*/, "" /*op_device*/, false /*with_quant_attr*/,
-      true /*trace_backward*/);
+  for (size_t i = 0; i < MLP_NUM_LINEAR; i++) {
+    EagerTensor Out = matmul_v2_dygraph_function(
+        input0, Ws[i], false /*trans_x*/, false /*trans_y*/,
+        {} /*fused_reshape_Out*/, {} /*fused_transpose_Out*/,
+        false /*use_mkldnn*/, "float32" /*mkldnn_data_type*/, 0 /*op_role*/,
+        {} /*op_role_var*/, "" /*op_namescope*/, {} /*op_callstack*/,
+        "" /*op_device*/, false /*with_quant_attr*/, true /*trace_backward*/);
 
-  EagerTensor Out3 = matmul_v2_dygraph_function(
-      Out2, W2, false /*trans_x*/, false /*trans_y*/, {} /*fused_reshape_Out*/,
-      {} /*fused_transpose_Out*/, false /*use_mkldnn*/,
-      "float32" /*mkldnn_data_type*/, 0 /*op_role*/, {} /*op_role_var*/,
-      "" /*op_namescope*/, {} /*op_callstack*/, "" /*op_device*/,
-      false /*with_quant_attr*/, true /*trace_backward*/);
-
-  EagerTensor Out4 = elementwise_add_dygraph_function(
-      Out3, B2, -1 /*axis*/, false /*use_mkldnn*/, "" /*x_data_format*/,
-      "" /*x_data_format*/, false /*use_quantizer*/,
-      "float32" /*mkldnn_data_type*/, 1.0 /*Scale_x*/, 1.0 /*Scale_y*/,
-      1.0 /*Scale_out*/, 0 /*op_role*/, {} /*op_role_var*/, "" /*op_namescope*/,
-      {} /*op_callstack*/, "" /*op_device*/, false /*with_quant_attr*/,
-      true /*trace_backward*/);
+    input0 = elementwise_add_dygraph_function(
+        Out, Bs[i], -1 /*axis*/, false /*use_mkldnn*/, "" /*x_data_format*/,
+        "" /*x_data_format*/, false /*use_quantizer*/,
+        "float32" /*mkldnn_data_type*/, 1.0 /*Scale_x*/, 1.0 /*Scale_y*/,
+        1.0 /*Scale_out*/, 0 /*op_role*/, {} /*op_role_var*/,
+        "" /*op_namescope*/, {} /*op_callstack*/, "" /*op_device*/,
+        false /*with_quant_attr*/, true /*trace_backward*/);
+  }
 
   EagerTensor Out = reduce_sum_dygraph_function(
-      Out4, {0} /*dim*/, false /*keep_dim*/, true /*reduce_all*/,
+      input0, {0} /*dim*/, false /*keep_dim*/, true /*reduce_all*/,
       -1 /*in_dtype*/, -1 /*out_dtype*/, false /*use_mkldnn*/, 0 /*op_role*/,
       {} /*op_role_var*/, "" /*op_namescope*/, {} /*op_callstack*/,
       "" /*op_device*/, false /*with_quant_attr*/, true /*trace_backward*/);
@@ -229,8 +217,7 @@ void benchmark_eager_intermediate_mlp(
 
     // Examine Backward Grad (w.r.t max_num_runs = 2)
     CompareGradTensorWithValue<float>(X, result["GradX"]);
-    CompareGradTensorWithValue<float>(W1, result["GradW1"]);
-    CompareGradTensorWithValue<float>(W2, result["GradW2"]);
+    CompareGradTensorWithValue<float>(Ws[0], result["GradW"]);
   }
 }
 
@@ -366,51 +353,38 @@ void benchmark_fluid_matmul(const std::shared_ptr<imperative::VarBase>& X,
 /* ------------------- */
 /* ---- Fluid MLP ---- */
 /* ------------------- */
-void benchmark_fluid_mlp(const std::shared_ptr<imperative::VarBase>& X,
-                         const std::shared_ptr<imperative::VarBase>& W1,
-                         const std::shared_ptr<imperative::VarBase>& W2,
-                         const std::shared_ptr<imperative::VarBase>& B1,
-                         const std::shared_ptr<imperative::VarBase>& B2,
-                         const paddle::platform::Place& place,
-                         bool accuracy_check) {
+void benchmark_fluid_mlp(
+    const std::shared_ptr<imperative::VarBase>& X,
+    const std::vector<std::shared_ptr<imperative::VarBase>>& Ws,
+    const std::vector<std::shared_ptr<imperative::VarBase>>& Bs,
+    const paddle::platform::Place& place, bool accuracy_check) {
   imperative::Tracer tracer;
 
-  // Matmul0
+  imperative::NameVarBaseMap ins;
+  imperative::NameVarBaseMap outs;
   framework::AttributeMap attrs;
-  imperative::NameVarBaseMap ins = {{"X", {X}}, {"Y", {W1}}};
-  imperative::NameVarBaseMap outs = {
-      {"Out",
-       {std::shared_ptr<imperative::VarBase>(
-           new imperative::VarBase(true, "Out"))}}};
+  std::shared_ptr<imperative::VarBase> input0 = X;
+  for (size_t i = 0; i < MLP_NUM_LINEAR; i++) {
+    // Matmul0
+    ins = {{"X", {input0}}, {"Y", {Ws[0]}}};
+    outs = {{"Out",
+             {std::shared_ptr<imperative::VarBase>(
+                 new imperative::VarBase(true, "Out"))}}};
 
-  tracer.TraceOp("matmul_v2", ins, outs, attrs, place, true);
+    tracer.TraceOp("matmul_v2", ins, outs, attrs, place, true);
 
-  // EW-Add0
-  ins = {{"X", outs["Out"]}, {"Y", {B1}}};
-  outs = {{"Out",
-           {std::shared_ptr<imperative::VarBase>(
-               new imperative::VarBase(true, "Out"))}}};
+    // EW-Add0
+    ins = {{"X", outs["Out"]}, {"Y", {Bs[i]}}};
+    outs = {{"Out",
+             {std::shared_ptr<imperative::VarBase>(
+                 new imperative::VarBase(true, "Out"))}}};
 
-  tracer.TraceOp("elementwise_add", ins, outs, attrs, place, true);
-
-  // Matmul1
-  ins = {{"X", outs["Out"]}, {"Y", {W2}}};
-  outs = {{"Out",
-           {std::shared_ptr<imperative::VarBase>(
-               new imperative::VarBase(true, "Out"))}}};
-
-  tracer.TraceOp("matmul_v2", ins, outs, attrs, place, true);
-
-  // EW-Add1
-  ins = {{"X", outs["Out"]}, {"Y", {B2}}};
-  outs = {{"Out",
-           {std::shared_ptr<imperative::VarBase>(
-               new imperative::VarBase(true, "Out"))}}};
-
-  tracer.TraceOp("elementwise_add", ins, outs, attrs, place, true);
+    tracer.TraceOp("elementwise_add", ins, outs, attrs, place, true);
+    input0 = outs["Out"][0];
+  }
 
   // ReduceSum
-  ins = {{"X", outs["Out"]}};
+  ins = {{"X", {input0}}};
   outs = {{"Out",
            {std::shared_ptr<imperative::VarBase>(
                new imperative::VarBase(true, "Out"))}}};
@@ -424,10 +398,12 @@ void benchmark_fluid_mlp(const std::shared_ptr<imperative::VarBase>& X,
   engine->Execute();
 
   if (accuracy_check) {
-    FluidCheckTensorValue(outs["Out"][0], place, 786432);
-    FluidCheckGradTensorValue(X, place, 12288);
-    FluidCheckGradTensorValue(W1, place, 768);
-    FluidCheckGradTensorValue(W2, place, 128);
+    std::unordered_map<std::string, float> result =
+        egr::compute_mlp_expected_results();
+
+    FluidCheckTensorValue(outs["Out"][0], place, result["Out"]);
+    FluidCheckGradTensorValue(X, place, result["GradX"]);
+    FluidCheckGradTensorValue(Ws[0], place, result["GradW"]);
   }
 }
 

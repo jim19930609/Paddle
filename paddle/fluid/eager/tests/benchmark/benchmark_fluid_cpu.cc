@@ -136,31 +136,16 @@ TEST(Benchmark, FluidMLPCPU) {
   egr::InitEnv(place);
 
   for (const std::string& mode : {"Accuracy", "Performance"}) {
+    std::vector<float> x_src_data(MLP_M * MLP_N, MLP_X_VAL);
+    std::vector<float> w_src_data(MLP_N * MLP_K, MLP_W_VAL);
+    std::vector<float> b_src_data(MLP_K, MLP_B_VAL);
+
+    std::vector<int64_t> x_dims = {MLP_M, MLP_N};
+    std::vector<int64_t> w_dims = {MLP_N, MLP_K};
+    std::vector<int64_t> b_dims = {MLP_K};
+
     std::shared_ptr<imperative::VarBase> X(new imperative::VarBase(true, "X"));
     X->SetOverridedStopGradient(false);
-    std::shared_ptr<imperative::VarBase> W1(
-        new imperative::VarBase(true, "W1"));
-    W1->SetOverridedStopGradient(false);
-    std::shared_ptr<imperative::VarBase> W2(
-        new imperative::VarBase(true, "W2"));
-    W2->SetOverridedStopGradient(false);
-    std::shared_ptr<imperative::VarBase> B1(
-        new imperative::VarBase(true, "B1"));
-    B1->SetOverridedStopGradient(false);
-    std::shared_ptr<imperative::VarBase> B2(
-        new imperative::VarBase(true, "B2"));
-    B2->SetOverridedStopGradient(false);
-
-    std::vector<float> x_src_data(MLP_M * MLP_N, MLP_X_VAL);
-    std::vector<float> w1_src_data(MLP_N * MLP_K1, MLP_W1_VAL);
-    std::vector<float> w2_src_data(MLP_K1 * MLP_K2, MLP_W2_VAL);
-    std::vector<float> b1_src_data(MLP_K1, MLP_B1_VAL);
-    std::vector<float> b2_src_data(MLP_K2, MLP_B2_VAL);
-    std::vector<int64_t> x_dims = {MLP_M, MLP_N};
-    std::vector<int64_t> w1_dims = {MLP_N, MLP_K1};
-    std::vector<int64_t> w2_dims = {MLP_K1, MLP_K2};
-    std::vector<int64_t> b1_dims = {MLP_K1};
-    std::vector<int64_t> b2_dims = {MLP_K2};
 
     auto* x_tensor = X->MutableVar()->GetMutable<framework::LoDTensor>();
     x_tensor->Resize(framework::make_ddim(x_dims));
@@ -168,39 +153,41 @@ TEST(Benchmark, FluidMLPCPU) {
     paddle::memory::Copy(place, mutable_x, place, x_src_data.data(),
                          sizeof(float) * x_src_data.size());
 
-    auto* w1_tensor = W1->MutableVar()->GetMutable<framework::LoDTensor>();
-    w1_tensor->Resize(framework::make_ddim(w1_dims));
-    auto* mutable_w1 = w1_tensor->mutable_data<float>(place);
-    paddle::memory::Copy(place, mutable_w1, place, w1_src_data.data(),
-                         sizeof(float) * w1_src_data.size());
+    std::vector<std::shared_ptr<imperative::VarBase>> Ws;
+    std::vector<std::shared_ptr<imperative::VarBase>> Bs;
+    for (size_t i = 0; i < MLP_NUM_LINEAR; i++) {
+      std::shared_ptr<imperative::VarBase> W(
+          new imperative::VarBase(true, "W"));
+      W->SetOverridedStopGradient(false);
+      std::shared_ptr<imperative::VarBase> B(
+          new imperative::VarBase(true, "B"));
+      B->SetOverridedStopGradient(false);
 
-    auto* w2_tensor = W2->MutableVar()->GetMutable<framework::LoDTensor>();
-    w2_tensor->Resize(framework::make_ddim(w2_dims));
-    auto* mutable_w2 = w2_tensor->mutable_data<float>(place);
-    paddle::memory::Copy(place, mutable_w2, place, w2_src_data.data(),
-                         sizeof(float) * w2_src_data.size());
+      auto* w_tensor = W->MutableVar()->GetMutable<framework::LoDTensor>();
+      w_tensor->Resize(framework::make_ddim(w_dims));
+      auto* mutable_w = w_tensor->mutable_data<float>(place);
+      paddle::memory::Copy(place, mutable_w, place, w_src_data.data(),
+                           sizeof(float) * w_src_data.size());
 
-    auto* b1_tensor = B1->MutableVar()->GetMutable<framework::LoDTensor>();
-    b1_tensor->Resize(framework::make_ddim(b1_dims));
-    auto* mutable_b1 = b1_tensor->mutable_data<float>(place);
-    paddle::memory::Copy(place, mutable_b1, place, b1_src_data.data(),
-                         sizeof(float) * b1_src_data.size());
+      auto* b_tensor = B->MutableVar()->GetMutable<framework::LoDTensor>();
+      b_tensor->Resize(framework::make_ddim(b_dims));
+      auto* mutable_b = b_tensor->mutable_data<float>(place);
+      paddle::memory::Copy(place, mutable_b, place, b_src_data.data(),
+                           sizeof(float) * b_src_data.size());
 
-    auto* b2_tensor = B2->MutableVar()->GetMutable<framework::LoDTensor>();
-    b2_tensor->Resize(framework::make_ddim(b2_dims));
-    auto* mutable_b2 = b2_tensor->mutable_data<float>(place);
-    paddle::memory::Copy(place, mutable_b2, place, b2_src_data.data(),
-                         sizeof(float) * b2_src_data.size());
+      Ws.emplace_back(std::move(W));
+      Bs.emplace_back(std::move(B));
+    }
 
     if (mode == "Accuracy") {
-      benchmark_fluid_mlp(X, W1, W2, B1, B2, platform::Place(place),
+      benchmark_fluid_mlp(X, Ws, Bs, platform::Place(place),
                           true /* accuracy_check */);
 
     } else if (mode == "Performance") {
       auto t_start = std::chrono::high_resolution_clock::now();
-      ProfilerStart("fluid_matmul_cpu.out");
+      ProfilerStart("fluid_mlp_cpu.out");
 
-      benchmark_fluid_mlp(X, W1, W2, B1, B2, platform::Place(place));
+      benchmark_fluid_mlp(X, Ws, Bs, platform::Place(place));
 
       ProfilerStop();
       auto t_end = std::chrono::high_resolution_clock::now();

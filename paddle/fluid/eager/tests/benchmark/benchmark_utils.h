@@ -14,41 +14,37 @@
 
 #pragma once
 
+#include <math.h>
 #include "paddle/fluid/eager/eager_tensor.h"
 #include "paddle/fluid/imperative/layer.h"
 #include "paddle/pten/api/all.h"
 #include "paddle/pten/hapi/all.h"
 
 /* MLP Configurations */
-// Out1 = X[M, N] x W1[N, K1] + B1[K1]
-// Out2 = Out1[M, K1] x W2[K1, K2] + B2[K2]
-// Out  = ReduceSum(Out2)
+// Out1 = X[M, N] x W[N, K] + B[K]
+// ... x MLP_NUM_LINEAR
+// Out  = ReduceSum(OutN)
 #define MLP_M 4
 #define MLP_N 16
-#define MLP_K1 32
-#define MLP_K2 64
+#define MLP_K MLP_N
 #define MLP_X_VAL 1.0
-#define MLP_W1_VAL 2.0
-#define MLP_W2_VAL 3.0
-#define MLP_B1_VAL 4.0
-#define MLP_B2_VAL 5.0
+#define MLP_W_VAL 2.0
+#define MLP_B_VAL 3.0
+#define MLP_NUM_LINEAR 1000
 
 namespace egr {
 
 inline std::unordered_map<std::string, float> compute_mlp_expected_results() {
-  float Out1 = MLP_N * (MLP_X_VAL * MLP_W1_VAL) + MLP_B1_VAL;
-  float Out2 = MLP_K1 * (Out1 * MLP_W2_VAL) + MLP_B2_VAL;
-  float Out = Out2 * MLP_M * MLP_K2;
+  float Out = MLP_X_VAL;
+  for (size_t i = 0; i < MLP_NUM_LINEAR; i++) {
+    Out = Out * MLP_W_VAL * MLP_N + MLP_B_VAL;
+  }
+  Out = Out * MLP_M * MLP_N;
 
-  float GradOut = 1.0;
-  float GradOut2 = GradOut;
-  float GradW2 = GradOut2 * Out1 * MLP_M;
-  float GradOut1 = GradOut2 * MLP_W2_VAL * MLP_K2;
-  float GradX = GradOut1 * MLP_W1_VAL * MLP_K1;
-  float GradW1 = GradOut1 * MLP_X_VAL * MLP_M;
-
-  return {
-      {"Out", Out}, {"GradX", GradX}, {"GradW1", GradW1}, {"GradW2", GradW2}};
+  float GradX = 1.0 * pow((MLP_W_VAL * MLP_N), MLP_NUM_LINEAR);
+  float GradW0 =
+      1.0 * pow((MLP_W_VAL * MLP_N), (MLP_NUM_LINEAR - 1)) * MLP_X_VAL * MLP_M;
+  return {{"Out", Out}, {"GradX", GradX}, {"GradW", GradW0}};
 }
 
 /* ---- Eager Scale ---- */
@@ -59,17 +55,19 @@ void benchmark_eager_scale(const EagerTensor& tensor,
 void benchmark_eager_matmul(const EagerTensor& X, const EagerTensor& Y,
                             bool accuracy_check = false);
 
-void benchmark_eager_mlp(const EagerTensor& X, const EagerTensor& W1,
-                         const EagerTensor& W2, const EagerTensor& B1,
-                         const EagerTensor& B2, bool accuracy_check = false);
+void benchmark_eager_mlp(const EagerTensor& X,
+                         const std::vector<EagerTensor>& Ws,
+                         const std::vector<EagerTensor>& Bs,
+                         bool accuracy_check = false);
 
 void benchmark_eager_intermediate_matmul(const EagerTensor& X,
                                          const EagerTensor& Y,
                                          bool accuracy_check = false);
 
-void benchmark_eager_intermediate_mlp(
-    const EagerTensor& X, const EagerTensor& W1, const EagerTensor& W2,
-    const EagerTensor& B1, const EagerTensor& B2, bool accuracy_check = false);
+void benchmark_eager_intermediate_mlp(const EagerTensor& X,
+                                      const std::vector<EagerTensor>& Ws,
+                                      const std::vector<EagerTensor>& Bs,
+                                      bool accuracy_check = false);
 
 }  // namespace egr
 
@@ -88,13 +86,11 @@ void benchmark_fluid_matmul(
     const paddle::platform::Place& place, bool accuracy_check = false);
 
 /* ---- Fluid MLP ---- */
-void benchmark_fluid_mlp(const std::shared_ptr<imperative::VarBase>& X,
-                         const std::shared_ptr<imperative::VarBase>& W1,
-                         const std::shared_ptr<imperative::VarBase>& W2,
-                         const std::shared_ptr<imperative::VarBase>& B1,
-                         const std::shared_ptr<imperative::VarBase>& B2,
-                         const paddle::platform::Place& place,
-                         bool accuracy_check = false);
+void benchmark_fluid_mlp(
+    const std::shared_ptr<imperative::VarBase>& X,
+    const std::vector<std::shared_ptr<imperative::VarBase>>& Ws,
+    const std::vector<std::shared_ptr<imperative::VarBase>>& Bs,
+    const paddle::platform::Place& place, bool accuracy_check = false);
 
 }  // namespace imperative
 }  // namespace paddle
