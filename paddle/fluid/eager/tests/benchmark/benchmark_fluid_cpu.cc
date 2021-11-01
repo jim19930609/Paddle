@@ -32,6 +32,11 @@
 
 #include "gperftools/profiler.h"
 
+// Disable pten path
+DECLARE_bool(run_pt_kernel);
+
+TEST(Benchmark, Init) { FLAGS_run_pt_kernel = false; }
+
 namespace paddle {
 namespace imperative {
 
@@ -133,17 +138,29 @@ TEST(Benchmark, FluidMLPCPU) {
   for (const std::string& mode : {"Accuracy", "Performance"}) {
     std::shared_ptr<imperative::VarBase> X(new imperative::VarBase(true, "X"));
     X->SetOverridedStopGradient(false);
-    std::shared_ptr<imperative::VarBase> W1(new imperative::VarBase(true, "Y"));
+    std::shared_ptr<imperative::VarBase> W1(
+        new imperative::VarBase(true, "W1"));
     W1->SetOverridedStopGradient(false);
-    std::shared_ptr<imperative::VarBase> W2(new imperative::VarBase(true, "Y"));
+    std::shared_ptr<imperative::VarBase> W2(
+        new imperative::VarBase(true, "W2"));
     W2->SetOverridedStopGradient(false);
+    std::shared_ptr<imperative::VarBase> B1(
+        new imperative::VarBase(true, "B1"));
+    B1->SetOverridedStopGradient(false);
+    std::shared_ptr<imperative::VarBase> B2(
+        new imperative::VarBase(true, "B2"));
+    B2->SetOverridedStopGradient(false);
 
-    std::vector<float> x_src_data(64, 1.0);
-    std::vector<float> w1_src_data(512, 2.0);
-    std::vector<float> w2_src_data(2048, 3.0);
-    std::vector<int64_t> x_dims = {4, 16};
-    std::vector<int64_t> w1_dims = {16, 32};
-    std::vector<int64_t> w2_dims = {32, 64};
+    std::vector<float> x_src_data(MLP_M * MLP_N, MLP_X_VAL);
+    std::vector<float> w1_src_data(MLP_N * MLP_K1, MLP_W1_VAL);
+    std::vector<float> w2_src_data(MLP_K1 * MLP_K2, MLP_W2_VAL);
+    std::vector<float> b1_src_data(MLP_K1, MLP_B1_VAL);
+    std::vector<float> b2_src_data(MLP_K2, MLP_B2_VAL);
+    std::vector<int64_t> x_dims = {MLP_M, MLP_N};
+    std::vector<int64_t> w1_dims = {MLP_N, MLP_K1};
+    std::vector<int64_t> w2_dims = {MLP_K1, MLP_K2};
+    std::vector<int64_t> b1_dims = {MLP_K1};
+    std::vector<int64_t> b2_dims = {MLP_K2};
 
     auto* x_tensor = X->MutableVar()->GetMutable<framework::LoDTensor>();
     x_tensor->Resize(framework::make_ddim(x_dims));
@@ -163,15 +180,27 @@ TEST(Benchmark, FluidMLPCPU) {
     paddle::memory::Copy(place, mutable_w2, place, w2_src_data.data(),
                          sizeof(float) * w2_src_data.size());
 
+    auto* b1_tensor = B1->MutableVar()->GetMutable<framework::LoDTensor>();
+    b1_tensor->Resize(framework::make_ddim(b1_dims));
+    auto* mutable_b1 = b1_tensor->mutable_data<float>(place);
+    paddle::memory::Copy(place, mutable_b1, place, b1_src_data.data(),
+                         sizeof(float) * b1_src_data.size());
+
+    auto* b2_tensor = B2->MutableVar()->GetMutable<framework::LoDTensor>();
+    b2_tensor->Resize(framework::make_ddim(b2_dims));
+    auto* mutable_b2 = b2_tensor->mutable_data<float>(place);
+    paddle::memory::Copy(place, mutable_b2, place, b2_src_data.data(),
+                         sizeof(float) * b2_src_data.size());
+
     if (mode == "Accuracy") {
-      benchmark_fluid_mlp(X, W1, W2, platform::Place(place),
+      benchmark_fluid_mlp(X, W1, W2, B1, B2, platform::Place(place),
                           true /* accuracy_check */);
 
     } else if (mode == "Performance") {
       auto t_start = std::chrono::high_resolution_clock::now();
       ProfilerStart("fluid_matmul_cpu.out");
 
-      benchmark_fluid_mlp(X, W1, W2, platform::Place(place));
+      benchmark_fluid_mlp(X, W1, W2, B1, B2, platform::Place(place));
 
       ProfilerStop();
       auto t_end = std::chrono::high_resolution_clock::now();

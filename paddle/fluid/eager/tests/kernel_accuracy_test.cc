@@ -76,13 +76,13 @@ TEST(KernelAccuracy, ElementwiseAdd) {
       egr::InitEnv(paddle::platform::CUDAPlace());
     }
 
-    paddle::framework::DDim ddim_X = paddle::framework::make_ddim({10, 10});
+    paddle::framework::DDim ddim_X = paddle::framework::make_ddim({10, 15});
     egr::EagerTensor X = EagerUtils::CreateTensorWithValue(
         ddim_X, backend, pten::DataType::FLOAT32, pten::DataLayout::NCHW, 1.0,
         true);
     RetainGradForTensor(X);
 
-    paddle::framework::DDim ddim_Y = paddle::framework::make_ddim({10, 10});
+    paddle::framework::DDim ddim_Y = paddle::framework::make_ddim({15});
     egr::EagerTensor Y = EagerUtils::CreateTensorWithValue(
         ddim_Y, backend, pten::DataType::FLOAT32, pten::DataLayout::NCHW, 2.0,
         true);
@@ -102,7 +102,7 @@ TEST(KernelAccuracy, ElementwiseAdd) {
         CompareGradTensorWithValue<float>(X, 1.0) == true,
         paddle::platform::errors::Fatal("Numerical Error, Expected %f", 1.0));
     PADDLE_ENFORCE(
-        CompareGradTensorWithValue<float>(Y, 1.0) == true,
+        CompareGradTensorWithValue<float>(Y, 10.0) == true,
         paddle::platform::errors::Fatal("Numerical Error, Expected %f", 1.0));
   }
 }
