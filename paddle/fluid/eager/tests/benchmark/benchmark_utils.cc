@@ -148,11 +148,7 @@ void benchmark_eager_intermediate_matmul(const EagerTensor& X,
   size_t max_num_runs = accuracy_check ? 2 : max_num_benchmark_runs;
   for (size_t i = 0; i < max_num_runs; i++) {
     input_tensor0 = matmul_v2_dygraph_function(
-        input_tensor0, Y, false /*trans_x*/, false /*trans_y*/,
-        {} /*fused_reshape_Out*/, {} /*fused_transpose_Out*/,
-        false /*use_mkldnn*/, "float32" /*mkldnn_data_type*/, 0 /*op_role*/,
-        {} /*op_role_var*/, "" /*op_namescope*/, {} /*op_callstack*/,
-        "" /*op_device*/, false /*with_quant_attr*/, true /*trace_backward*/);
+        input_tensor0, Y, {{"trans_x", false}, {"trans_y", false}});
   }
 
   std::vector<EagerTensor> target_tensors = {input_tensor0};
@@ -184,26 +180,12 @@ void benchmark_eager_intermediate_mlp(const EagerTensor& X,
 
   for (size_t i = 0; i < MLP_NUM_LINEAR; i++) {
     EagerTensor Out = matmul_v2_dygraph_function(
-        input0, Ws[i], false /*trans_x*/, false /*trans_y*/,
-        {} /*fused_reshape_Out*/, {} /*fused_transpose_Out*/,
-        false /*use_mkldnn*/, "float32" /*mkldnn_data_type*/, 0 /*op_role*/,
-        {} /*op_role_var*/, "" /*op_namescope*/, {} /*op_callstack*/,
-        "" /*op_device*/, false /*with_quant_attr*/, true /*trace_backward*/);
+        input0, Ws[i], {{"trans_x", false}, {"trans_y", false}});
 
-    input0 = elementwise_add_dygraph_function(
-        Out, Bs[i], -1 /*axis*/, false /*use_mkldnn*/, "" /*x_data_format*/,
-        "" /*x_data_format*/, false /*use_quantizer*/,
-        "float32" /*mkldnn_data_type*/, 1.0 /*Scale_x*/, 1.0 /*Scale_y*/,
-        1.0 /*Scale_out*/, 0 /*op_role*/, {} /*op_role_var*/,
-        "" /*op_namescope*/, {} /*op_callstack*/, "" /*op_device*/,
-        false /*with_quant_attr*/, true /*trace_backward*/);
+    input0 = elementwise_add_dygraph_function(Out, Bs[i], {});
   }
 
-  EagerTensor Out = reduce_sum_dygraph_function(
-      input0, {0} /*dim*/, false /*keep_dim*/, true /*reduce_all*/,
-      -1 /*in_dtype*/, -1 /*out_dtype*/, false /*use_mkldnn*/, 0 /*op_role*/,
-      {} /*op_role_var*/, "" /*op_namescope*/, {} /*op_callstack*/,
-      "" /*op_device*/, false /*with_quant_attr*/, true /*trace_backward*/);
+  EagerTensor Out = reduce_sum_dygraph_function(input0, {{"reduce_all", true}});
 
   std::vector<EagerTensor> target_tensors = {Out};
   RunBackward(target_tensors, {});
