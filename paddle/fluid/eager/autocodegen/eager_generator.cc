@@ -1086,19 +1086,35 @@ static std::string GenerateGradNodeCCContents(
   generated_grad_function_body += ins_map_str;
 
   // [Generation] Get Outs Map
+  std::unordered_set<std::string> duplicable_input_name_set;
+  for (const auto& out : op_proto.outputs()) {
+    if (out.duplicable()) duplicable_input_name_set.insert(out.name());
+  }
+
   std::string outs_contents_str = "";
   for (auto iter : grad_outs) {
     const std::string& grad_output_name = iter.first;
 
     if (grad_outs_slotname_map.count(grad_output_name)) {
       // Fwd Tensor
-      size_t fwd_input_position = fwd_inputs_name_pos_map.at(
-          grad_outs_slotname_map.at(grad_output_name));
-      const char* GRAD_OUTS_CONTENT_TEMPLATE =
-          "{ \"%s\", egr::ConstructDuplicableOutput( "
-          "this->OutputMeta()[%d].Size() ) },";
-      outs_contents_str += paddle::string::Sprintf(
-          GRAD_OUTS_CONTENT_TEMPLATE, grad_output_name, fwd_input_position);
+      const std::string& fwd_input_name =
+          grad_outs_slotname_map.at(grad_output_name);
+      size_t fwd_input_position = fwd_inputs_name_pos_map.at(fwd_input_name);
+
+      if (duplicable_input_name_set.count(fwd_input_name)) {
+        const char* GRAD_OUTS_CONTENT_TEMPLATE =
+            "{ \"%s\", egr::ConstructDuplicableOutput( "
+            "this->OutputMeta()[%d].Size() ) },";
+        outs_contents_str += paddle::string::Sprintf(
+            GRAD_OUTS_CONTENT_TEMPLATE, grad_output_name, fwd_input_position);
+      } else {
+        const char* GRAD_OUTS_CONTENT_TEMPLATE =
+            "{ \"%s\", "
+            "{std::make_shared<egr::EagerTensor>(egr::Controller::Instance()."
+            "GenerateUniqueName())}},";
+        outs_contents_str += paddle::string::Sprintf(GRAD_OUTS_CONTENT_TEMPLATE,
+                                                     grad_output_name);
+      }
     } else {
       PADDLE_THROW(platform::errors::Fatal(
           "Unable to find forward slot name that matches %s",
