@@ -45,7 +45,7 @@ Tensor reduce_sum(const Tensor& x,
   auto kernel_key_set = ParseKernelKeyByInputArgs(x);
   auto kernel_key = kernel_key_set.GetHigestPriorityKernelKey();
   auto kernel = pten::KernelFactory::Instance().SelectKernelOrThrowError(
-      "reduce_sum", kernel_key);
+      "reduce_sum_experimental", kernel_key);
 
   // 2. Get Device Context
   auto* dev_ctx = GetDeviceContextByBackend(kernel_key.backend());

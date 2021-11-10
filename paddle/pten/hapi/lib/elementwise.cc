@@ -39,7 +39,7 @@ Tensor elementwise_add(const Tensor& x, const Tensor& y, int axis) {
   auto kernel_key_set = ParseKernelKeyByInputArgs(x);
   auto kernel_key = kernel_key_set.GetHigestPriorityKernelKey();
   auto kernel = pten::KernelFactory::Instance().SelectKernelOrThrowError(
-      "elementwise_add", kernel_key);
+      "elementwise_add_experimental", kernel_key);
 
   // 2. Get Device Context
   auto* dev_ctx = GetDeviceContextByBackend(kernel_key.backend());

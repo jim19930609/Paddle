@@ -85,5 +85,11 @@ PT_REGISTER_KERNEL("dot",
                    complex64,
                    complex128) {}
 
-PT_REGISTER_KERNEL(
-    "matmul", CPU, ANY, pten::Matmul, float, double, complex64, complex128) {}
+PT_REGISTER_KERNEL("matmul_experimental",
+                   CPU,
+                   ANY,
+                   pten::Matmul,
+                   float,
+                   double,
+                   complex64,
+                   complex128) {}

@@ -40,7 +40,7 @@ PT_REGISTER_MODULE(ElementwiseCPU);
 using complex64 = ::paddle::platform::complex<float>;
 using complex128 = ::paddle::platform::complex<double>;
 
-PT_REGISTER_KERNEL("elementwise_add",
+PT_REGISTER_KERNEL("elementwise_add_experimental",
                    CPU,
                    ANY,
                    pten::ElementwiseAdd,

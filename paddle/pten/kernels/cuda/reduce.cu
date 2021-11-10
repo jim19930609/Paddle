@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "paddle/fluid/platform/complex.h"
+#include "paddle/pten/kernels/cuda/reduce.h"
 #include "paddle/pten/kernels/functions/math/reduce_function.cu.h"
 
 namespace pten {
@@ -29,7 +30,7 @@ void ReduceSum(const CUDAContext& dev_ctx,
       dev_ctx, x, reduce_all, dim, keep_dim, out_dtype, out);
 }
 
-}  // namespace pt
+}  // namespace pten
 
 // TODO(chenweihang): replace by better impl
 PT_REGISTER_MODULE(ReduceCUDA);
@@ -37,7 +38,7 @@ PT_REGISTER_MODULE(ReduceCUDA);
 using complex64 = ::paddle::platform::complex<float>;
 using complex128 = ::paddle::platform::complex<double>;
 
-PT_REGISTER_KERNEL("reduce_sum",
+PT_REGISTER_KERNEL("reduce_sum_experimental",
                    CUDA,
                    ANY,
                    pten::ReduceSum,
