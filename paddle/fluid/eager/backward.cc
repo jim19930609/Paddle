@@ -17,7 +17,7 @@
 
 #include "paddle/fluid/eager/autograd_meta.h"
 #include "paddle/fluid/eager/grad_node_info.h"
-#include "paddle/fluid/eager/input_buffer.h"
+#include "paddle/fluid/eager/grad_tensor_holder.h"
 #include "paddle/fluid/eager/utils.h"
 
 #include "paddle/fluid/platform/enforce.h"

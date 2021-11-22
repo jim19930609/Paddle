@@ -22,11 +22,9 @@ namespace egr {
 void RegisterGradientHookForTensor(
     const egr::EagerTensor& tensor,
     std::function<egr::EagerTensor(const egr::EagerTensor&)>& hook);
+
 void RegisterReduceHookForTensor(const egr::EagerTensor& tensor,
                                  const std::function<void(void)>& hook);
 void RetainGradForTensor(const egr::EagerTensor& tensor);
-
-egr::EagerTensor scale(const egr::EagerTensor& x, float scale, float bias,
-                       bool bias_after_scale, bool trace_backward);
 
 }  // namespace egr
