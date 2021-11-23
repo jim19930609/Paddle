@@ -32,12 +32,19 @@ static std::unordered_set<std::string> operators_to_skip = {
     "flip",                           // Attr Error
     "cast",                           // Attr Error
     "sum",
-    "minus"  // Multiple ops_
+    "minus",  // Multiple ops_
+    "pull_sparse",
+    "pull_box_extended_sparse",
+    "pull_sparse_v2",
+    "pull_box_sparse",
+    "fused_attention",
+    "diag_v2",
 };
-
+/*
 static std::unordered_set<std::string> operators_to_codegen = {
     "sigmoid",      "matmul_v2",   "reduce_sum", "elementwise_add",
     "share_buffer", "var_conv_2d", "split"};
+*/
 
 static std::unordered_set<std::string> skipped_operators = {};
 
@@ -337,7 +344,7 @@ static bool CheckOpProto(proto::OpProto* op_proto) {
   // Only handle matmul_v2 for now
   VLOG(6) << "------ Analyzing Op ------: " << op_type;
 
-  if (!operators_to_codegen.count(op_type)) return false;
+  // if (!operators_to_codegen.count(op_type)) return false;
   if (operators_to_skip.count(op_type)) return false;
 
   return true;
@@ -524,14 +531,17 @@ static bool CollectInformationFromOpInfo(
   VLOG(6) << "Finished Slotname Matching for Grad_Outs";
 
   /* ------ Maping forward slot name to fwd position ------ */
-  // Follow map's order
   size_t in_pos = 0;
   for (const auto& iter : ins) {
+    VLOG(6) << "Mapping input tensor: " << iter.first
+            << " To position: " << in_pos;
     (*fwd_inputs_name_pos_map)[iter.first] = in_pos;
     in_pos++;
   }
   size_t out_pos = 0;
   for (const auto& iter : outs) {
+    VLOG(6) << "Mapping output tensor: " << iter.first
+            << " To position: " << out_pos;
     (*fwd_outputs_name_pos_map)[iter.first] = out_pos;
     out_pos++;
   }
@@ -549,6 +559,8 @@ static std::string GenerateGradNodeCreationContent(
     const std::unordered_map<std::string, size_t>& fwd_outputs_name_pos_map,
     const std::map<std::string, std::string>& grad_ins_fwd_slotname_map,
     const proto::OpProto& op_proto) {
+  VLOG(6) << "Generating GradNode Creation codes";
+
   const std::string& op_type = op_proto.type();
 
   // [Generation] Construct GradOpNode
@@ -582,6 +594,7 @@ static std::string GenerateGradNodeCreationContent(
           GET_SINGLE_AUTOGRAD_META_TEMPLATE, input_autograd_name, input_name);
     }
   }
+  VLOG(6) << "Generated inputs autograd_meta";
 
   // If single output slotname and not duplicable,
   // then generate: "egr::AutogradMeta* p_autograd_out =
@@ -610,6 +623,7 @@ static std::string GenerateGradNodeCreationContent(
           GET_SINGLE_AUTOGRAD_META_TEMPLATE, output_autograd_name, output_name);
     }
   }
+  VLOG(6) << "Generated outputs autograd_meta";
 
   std::string prepare_autograd_meta_str = "";
   prepare_autograd_meta_str += get_autograd_meta_str;
@@ -633,6 +647,8 @@ static std::string GenerateGradNodeCreationContent(
       GRAD_OP_NODE_TEMPLATE, op_type, bwd_in_slot_num, bwd_out_slot_num);
   grad_node_creation_str += "\n";
 
+  VLOG(6) << "Generated GradOpNode construction";
+
   // [GradOpNode] Set Attrs
   grad_node_creation_str += "    // Set Attributes\n";
   grad_node_creation_str += "    grad_node->SetAttrMap(std::move(attrs));\n";
@@ -650,6 +666,7 @@ static std::string GenerateGradNodeCreationContent(
         SET_TENSOR_WRAPPER_TEMPLATE, tensor_wrapper_name, tensor_wrapper_name);
   }
   grad_node_creation_str += "\n";
+  VLOG(6) << "Generated SetTensorWrapper";
 
   // [GradOpNode] SetGradOutMeta
   // [GradOpNode] Add Edges
@@ -695,6 +712,7 @@ static std::string GenerateGradNodeCreationContent(
     grad_node_creation_str +=
         paddle::string::Sprintf(SET_HISTORY_TEMPLATE, output_autograd_name);
   }
+  VLOG(6) << "Generated SetGradIn/OutMeta";
 
   // [Generation] GradNode Creation
   const char* GRAD_NODE_CREATION_TEMPLATE =
@@ -777,6 +795,7 @@ static std::pair<std::string, std::string> GenerateForwardFunctionContents(
         return std::make_tuple(Out0, Out1, Out2);
     }
   */
+  VLOG(6) << "Generating Dygraph Forward Function";
 
   const std::string& op_type = op_proto.type();
 
@@ -784,7 +803,6 @@ static std::pair<std::string, std::string> GenerateForwardFunctionContents(
   std::string dygraph_function_args_str = "";
 
   /* ------ Dygraph forward function generation ------ */
-  // [Generation] Get Tracer
   generated_function_body += "  // Dygraph Forward Pass\n";
   generated_function_body += "\n";
 
@@ -827,6 +845,8 @@ static std::pair<std::string, std::string> GenerateForwardFunctionContents(
   generated_function_body += ins_map_str;
   generated_function_body += "\n";
 
+  VLOG(6) << "Generated Ins Map";
+
   // [Generation] Get Outs Map
   std::string outs_contents_str = "";
   for (const proto::OpProto::Var& output : op_proto.outputs()) {
@@ -864,6 +884,8 @@ static std::pair<std::string, std::string> GenerateForwardFunctionContents(
   generated_function_body += outs_map_str;
   generated_function_body += "\n";
 
+  VLOG(6) << "Generated Outs Map";
+
   // [Generation] Get Attrs
   dygraph_function_args_str +=
       ", const paddle::framework::AttributeMap& attr_map";
@@ -880,6 +902,8 @@ static std::pair<std::string, std::string> GenerateForwardFunctionContents(
       paddle::string::Sprintf(FWD_TRACE_OP_TEMPLATE, op_proto.type());
   generated_function_body += trace_op_str;
   generated_function_body += "\n";
+
+  VLOG(6) << "Generated AttrMap & TraceOp";
 
   // [Generation] Convert output VarBase to Vector/Tensor
   size_t output_size = op_proto.outputs().size();
@@ -910,6 +934,7 @@ static std::pair<std::string, std::string> GenerateForwardFunctionContents(
     generated_function_body += out_tensor_str;
   }
   generated_function_body += "\n";
+  VLOG(6) << "Converted Output VarBase to EagerTensor(s)";
 
   // [Generation] ComputeRequireGrad -> GradNodeCreation
   std::string grad_node_creation_body_str = GenerateGradNodeCreationContent(
@@ -917,6 +942,7 @@ static std::pair<std::string, std::string> GenerateForwardFunctionContents(
       fwd_outputs_name_pos_map, grad_ins_fwd_slotname_map, op_proto);
   generated_function_body += grad_node_creation_body_str;
   generated_function_body += "\n";
+  VLOG(6) << "Generated GradNode Creation codes";
 
   // [Generation] Handle return: Tuple/Vector/Tensor
   generated_function_body += "\n";
@@ -953,6 +979,7 @@ static std::pair<std::string, std::string> GenerateForwardFunctionContents(
   }
   generated_function_body += return_str;
   generated_function_body += "\n";
+  VLOG(6) << "Generated return codes";
 
   // [Generation] Get Full Function
   std::string function_name = op_type + "_dygraph_function";
@@ -995,6 +1022,8 @@ static std::string GenerateGradNodeCCContents(
         std::vector<std::shared_ptr<paddle::imperative::VariableWrapper>>>&
         grad_outs,
     const proto::OpProto& op_proto) {
+  VLOG(6) << "Generating Grad Node CC";
+
   /* [Outline]
 
   vector<vector<Tensor>> GradNodeXXX::operator()(vector<vector<Tensor>>& grads)
@@ -1085,10 +1114,12 @@ static std::string GenerateGradNodeCCContents(
       paddle::string::Sprintf(BWD_INS_MAP_TEMPLATE, ins_contents_str);
   generated_grad_function_body += ins_map_str;
 
+  VLOG(6) << "Generated Ins Map";
+
   // [Generation] Get Outs Map
   std::unordered_set<std::string> duplicable_input_name_set;
-  for (const auto& out : op_proto.outputs()) {
-    if (out.duplicable()) duplicable_input_name_set.insert(out.name());
+  for (const auto& in : op_proto.inputs()) {
+    if (in.duplicable()) duplicable_input_name_set.insert(in.name());
   }
 
   std::string outs_contents_str = "";
@@ -1133,6 +1164,8 @@ static std::string GenerateGradNodeCCContents(
   generated_grad_function_body += outs_map_str;
   generated_grad_function_body += "\n";
 
+  VLOG(6) << "Generated Outs Map";
+
   // [Generation] Get Attrs Map
   std::string trace_opbase_str = "";
   for (size_t i = 0; i < grad_node_default_attr_maps.size(); i++) {
@@ -1149,6 +1182,8 @@ static std::string GenerateGradNodeCCContents(
   }
 
   generated_grad_function_body += trace_opbase_str;
+
+  VLOG(6) << "Generated Attrs Map";
 
   // [Generation] Get Return
   std::string outputs_str = "";
@@ -1181,6 +1216,8 @@ static std::string GenerateGradNodeCCContents(
   std::string grad_function_str = paddle::string::Sprintf(
       GRAD_FUNCTION_TEMPLATE, op_type, generated_grad_function_body);
 
+  VLOG(6) << "Generated returns";
+
   return grad_function_str;
 }
 
@@ -1192,6 +1229,8 @@ static std::string GenerateGradNodeHeaderContents(
         grad_node_default_attr_maps,
     const std::map<std::string, std::string>& grad_ins_fwd_slotname_map,
     const proto::OpProto& op_proto) {
+  VLOG(6) << "Generating Grad Node Header";
+
   const char* GRAD_NODE_TEMPLATE =
       "class GradNode%s : public egr::GradNodeBase {\n"
       " public:\n"
@@ -1230,6 +1269,8 @@ static std::string GenerateGradNodeHeaderContents(
   std::string attr_members_str =
       "   paddle::framework::AttributeMap attr_map_;\n";
   attr_members_str += "   paddle::framework::AttributeMap default_attr_map_;";
+
+  VLOG(6) << "Generated SetAttr";
 
   // [Generation] Handle TensorWrappers
   std::unordered_set<std::string> duplicable_inputs;
@@ -1280,6 +1321,7 @@ static std::string GenerateGradNodeHeaderContents(
         SET_TENSOR_WRAPPER_TEMPLATE, tensor_wrapper_name,
         tensor_wrapper_arg_str, tensor_wrapper_body_str);
   }
+  VLOG(6) << "Generated TensorWrapper";
 
   std::string grad_node_str = paddle::string::Sprintf(
       GRAD_NODE_TEMPLATE, op_type, op_type, op_type, op_type,
@@ -1380,6 +1422,7 @@ static void DygraphCodeGeneration(const std::string& output_dir) {
   std::string dygraph_forward_api_str = GenerateDygraphHFileIncludes();
 
   auto& op_info_map = paddle::framework::OpInfoMap::Instance().map();
+
   for (auto& pair : op_info_map) {
     const OpInfo& op_info = pair.second;
     proto::OpProto* op_proto = op_info.proto_;
@@ -1404,6 +1447,7 @@ static void DygraphCodeGeneration(const std::string& output_dir) {
              std::vector<std::shared_ptr<paddle::imperative::VariableWrapper>>>
         grad_outs;
 
+    VLOG(6) << "-------- CollectInformationFromOpInfo -------";
     bool is_available = CollectInformationFromOpInfo(
         op_info, &grad_node_default_attr_maps, &grad_op_types,
         &fwd_inputs_name_pos_map, &fwd_outputs_name_pos_map,
@@ -1416,6 +1460,7 @@ static void DygraphCodeGeneration(const std::string& output_dir) {
     /* --------- CodeGen --------- */
     /* --------------------------- */
     /* ---- xxx_dygraph.cc ---- */
+    VLOG(6) << "-------- GenerateForwardFunctionContents -------";
     std::pair<std::string, std::string> body_and_declaration =
         GenerateForwardFunctionContents(
             grad_node_default_attr_maps, fwd_inputs_name_pos_map,
@@ -1430,20 +1475,25 @@ static void DygraphCodeGeneration(const std::string& output_dir) {
     dygraph_forward_api_str += fwd_function_declare_str;
 
     /* ---- xxx_node.h ---- */
+    VLOG(6) << "-------- GenerateGradNodeHeaderContents -------";
     std::string grad_node_h_str = GenerateGradNodeHeaderContents(
         grad_node_default_attr_maps, grad_ins_fwd_slotname_map, *op_proto);
     GenerateNodeHFile(op_type, output_dir, grad_node_h_str);
 
     /* ---- xxx_node.cc ---- */
+    VLOG(6) << "-------- GenerateGradNodeCCContents -------";
     std::string grad_node_cc_str = GenerateGradNodeCCContents(
         grad_node_default_attr_maps, grad_op_types, fwd_inputs_name_pos_map,
         fwd_outputs_name_pos_map, grad_ins_fwd_slotname_map,
         grad_ins_grad_slotname_map, grad_outs_slotname_map, grad_ins, grad_outs,
         *op_proto);
     GenerateNodeCCFile(op_type, output_dir, grad_node_cc_str);
+
+    VLOG(6) << op_type << ": Finished Generation";
   }
 
   /* ---- dygraph_forward_api.h ---- */
+  VLOG(6) << "-------- GenerateForwardHFile -------";
   GenerateForwardHFile(output_dir, dygraph_forward_api_str);
 }
 
