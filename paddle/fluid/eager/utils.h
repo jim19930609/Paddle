@@ -23,6 +23,9 @@
 #include "paddle/fluid/framework/variable.h"
 
 namespace egr {
+
+class TensorWrapper;
+
 std::vector<std::shared_ptr<egr::EagerTensor>> SyncToVars(
     const egr::EagerTensor& tensor);
 std::vector<std::shared_ptr<egr::EagerTensor>> SyncToVars(
@@ -161,7 +164,13 @@ class EagerUtils {
   // This method will return an AutogradMeta pointer unsafely.
   static AutogradMeta* unsafe_autograd_meta(const egr::EagerTensor& target);
   static std::vector<AutogradMeta*> unsafe_autograd_meta(
-      std::vector<egr::EagerTensor>* targets);
+      const std::vector<egr::EagerTensor>& targets);
+
+  static egr::EagerTensor RecoverTensorWrapper(
+      egr::TensorWrapper* tw, const std::shared_ptr<GradNodeBase>& grad_node);
+  static std::vector<egr::EagerTensor> RecoverTensorWrapper(
+      std::vector<egr::TensorWrapper>* tw,
+      const std::shared_ptr<GradNodeBase>& grad_node);
 };
 
 }  // namespace egr

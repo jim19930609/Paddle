@@ -15,6 +15,7 @@
 #include "paddle/fluid/eager/utils.h"
 #include "paddle/fluid/eager/accumulation/accumulation_node.h"
 #include "paddle/fluid/eager/api/utils/global_utils.h"
+#include "paddle/fluid/eager/tensor_wrapper.h"
 
 #include "paddle/pten/api/all.h"
 #include "paddle/pten/common/layout.h"
@@ -126,9 +127,9 @@ AutogradMeta* EagerUtils::unsafe_autograd_meta(const egr::EagerTensor& target) {
 }
 
 std::vector<AutogradMeta*> EagerUtils::unsafe_autograd_meta(
-    std::vector<egr::EagerTensor>* targets) {
+    const std::vector<egr::EagerTensor>& targets) {
   std::vector<AutogradMeta*> metas;
-  for (const egr::EagerTensor& t : *targets) {
+  for (const egr::EagerTensor& t : targets) {
     metas.push_back(unsafe_autograd_meta(t));
   }
   return metas;
@@ -239,6 +240,21 @@ void EagerUtils::SetOutRankWithSlot(std::vector<AutogradMeta*>* targets,
 }
 void EagerUtils::SetOutRankWithSlot(AutogradMeta* target, size_t slot_id) {
   target->SetSingleOutRankWithSlot(slot_id, 0);
+}
+
+EagerTensor EagerUtils::RecoverTensorWrapper(
+    TensorWrapper* tw, const std::shared_ptr<GradNodeBase>& grad_node) {
+  return tw->recover(grad_node);
+}
+
+std::vector<EagerTensor> EagerUtils::RecoverTensorWrapper(
+    std::vector<TensorWrapper>* tw,
+    const std::shared_ptr<GradNodeBase>& grad_node) {
+  std::vector<EagerTensor> ret;
+  for (auto& t : *tw) {
+    ret.emplace_back(t.recover(grad_node));
+  }
+  return ret;
 }
 
 }  // namespace egr

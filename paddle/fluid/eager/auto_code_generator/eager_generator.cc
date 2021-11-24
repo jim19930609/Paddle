@@ -342,7 +342,7 @@ static bool CheckOpProto(proto::OpProto* op_proto) {
   }
 
   // Only handle matmul_v2 for now
-  VLOG(6) << "------ Analyzing Op ------: " << op_type;
+  VLOG(1) << "------ Analyzing Op ------: " << op_type;
 
   // if (!operators_to_codegen.count(op_type)) return false;
   if (operators_to_skip.count(op_type)) return false;
@@ -868,8 +868,8 @@ static std::pair<std::string, std::string> GenerateForwardFunctionContents(
           "{ \"%s\", "
           "{std::make_shared<egr::EagerTensor>(egr::Controller::Instance()."
           "GenerateUniqueName())}},";
-      outs_contents_str += paddle::string::Sprintf(FWD_OUTS_CONTENT_TEMPLATE,
-                                                   output_name, outnum);
+      outs_contents_str +=
+          paddle::string::Sprintf(FWD_OUTS_CONTENT_TEMPLATE, output_name);
     }
   }
   if (outs_contents_str.size() > 0)
@@ -962,9 +962,9 @@ static std::pair<std::string, std::string> GenerateForwardFunctionContents(
     }
     return_type_str.pop_back();  // Remove trailing ","
 
-    const char* FWD_TUPLE_RETURN_TEMPLATE = "  return std::make_tuple<%s>(%s);";
-    return_str = paddle::string::Sprintf(FWD_TUPLE_RETURN_TEMPLATE,
-                                         return_type_str, return_content_str);
+    const char* FWD_TUPLE_RETURN_TEMPLATE = "  return std::make_tuple(%s);";
+    return_str =
+        paddle::string::Sprintf(FWD_TUPLE_RETURN_TEMPLATE, return_content_str);
 
     const char* FWD_FUNCTION_PROTO_RETURN_TEMPLATE = "std::tuple<%s>";
     function_proto_return_type_str = paddle::string::Sprintf(
@@ -1084,7 +1084,9 @@ static std::string GenerateGradNodeCCContents(
       std::string struct_fwd_input_name =
           grad_ins_fwd_slotname_map.at(grad_input_name) + "_";
       const char* GRAD_INS_FWD_CONTENT_TEMPLATE =
-          "{ \"%s\", egr::SyncToVars(this->%s.recover(nullptr)) },";
+          "{ \"%s\", "
+          "egr::SyncToVars(egr::EagerUtils::RecoverTensorWrapper(&this->%s, "
+          "nullptr)) },";
       ins_contents_str +=
           paddle::string::Sprintf(GRAD_INS_FWD_CONTENT_TEMPLATE,
                                   grad_input_name, struct_fwd_input_name);
@@ -1273,10 +1275,15 @@ static std::string GenerateGradNodeHeaderContents(
   VLOG(6) << "Generated SetAttr";
 
   // [Generation] Handle TensorWrappers
-  std::unordered_set<std::string> duplicable_inputs;
+  std::unordered_set<std::string> duplicable_tensors;
   for (const proto::OpProto::Var& input : op_proto.inputs()) {
     if (input.duplicable()) {
-      duplicable_inputs.insert(input.name());
+      duplicable_tensors.insert(input.name());
+    }
+  }
+  for (const proto::OpProto::Var& output : op_proto.outputs()) {
+    if (output.duplicable()) {
+      duplicable_tensors.insert(output.name());
     }
   }
 
@@ -1287,16 +1294,27 @@ static std::string GenerateGradNodeHeaderContents(
     const std::string& struct_tensor_wrapper_name = kv.second + "_";
 
     std::string tensor_wrapper_arg_str;
-    if (duplicable_inputs.count(tensor_wrapper_name)) {
+    std::string tensor_wrapper_body_str;
+    if (duplicable_tensors.count(tensor_wrapper_name)) {
       const char* ATTR_TENSOR_WRAPPER_ARG_TEMPLATE =
           "const std::vector<egr::EagerTensor>& %s";
       tensor_wrapper_arg_str = paddle::string::Sprintf(
           ATTR_TENSOR_WRAPPER_ARG_TEMPLATE, tensor_wrapper_name);
 
       const char* TENSOR_WRAPPER_MEMBER_TEMPLATE =
-          "   std::vector<egr::EagerTensor> %s;\n";
+          "   std::vector<egr::TensorWrapper> %s;\n";
       tensor_wrapper_members_str += paddle::string::Sprintf(
           TENSOR_WRAPPER_MEMBER_TEMPLATE, struct_tensor_wrapper_name);
+
+      const char* SET_TENSOR_WRAPPER_BODY_TEMPLATE =
+          "for(const auto& eager_tensor : %s) {\n"
+          "          %s.emplace_back( egr::TensorWrapper(eager_tensor, true "
+          "/*full_reserved*/) );\n"
+          "      }\n";
+      tensor_wrapper_body_str = paddle::string::Sprintf(
+          SET_TENSOR_WRAPPER_BODY_TEMPLATE, tensor_wrapper_name,
+          struct_tensor_wrapper_name);
+
     } else {
       const char* ATTR_TENSOR_WRAPPER_ARG_TEMPLATE =
           "const egr::EagerTensor& %s";
@@ -1307,13 +1325,13 @@ static std::string GenerateGradNodeHeaderContents(
           "   egr::TensorWrapper %s;\n";
       tensor_wrapper_members_str += paddle::string::Sprintf(
           TENSOR_WRAPPER_MEMBER_TEMPLATE, struct_tensor_wrapper_name);
-    }
 
-    const char* SET_TENSOR_WRAPPER_BODY_TEMPLATE =
-        "%s = egr::TensorWrapper(%s, true /*full_reserved*/);";
-    std::string tensor_wrapper_body_str = paddle::string::Sprintf(
-        SET_TENSOR_WRAPPER_BODY_TEMPLATE, struct_tensor_wrapper_name,
-        tensor_wrapper_name);
+      const char* SET_TENSOR_WRAPPER_BODY_TEMPLATE =
+          "%s = egr::TensorWrapper(%s, true /*full_reserved*/);";
+      tensor_wrapper_body_str = paddle::string::Sprintf(
+          SET_TENSOR_WRAPPER_BODY_TEMPLATE, struct_tensor_wrapper_name,
+          tensor_wrapper_name);
+    }
 
     const char* SET_TENSOR_WRAPPER_TEMPLATE =
         "   void SetTensorWrapper%s(%s) {\n     %s\n   }\n";
