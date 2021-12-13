@@ -23,6 +23,15 @@
 #include "paddle/fluid/platform/profiler.h"
 #include "paddle/fluid/string/string_helper.h"
 
+int fluid_node_time = 0;
+int fluid_kernel_time = 0;
+
+inline uint64_t GetPosixInUsec() {
+  struct timeval tv;
+  gettimeofday(&tv, nullptr);
+  return (static_cast<uint64_t>(tv.tv_sec) * 1000000 + tv.tv_usec);
+}
+
 DECLARE_bool(use_mkldnn);
 DECLARE_string(tracer_mkldnn_ops_on);
 DECLARE_string(tracer_mkldnn_ops_off);
@@ -210,7 +219,11 @@ void Tracer::TraceOp(const std::string& type, const NameVarBaseMap& ins,
 #endif
     }
 
+    int ts = GetPosixInUsec();
     OpBase::Run(*op, new_ins, outs, attrs, default_attrs, place);
+    int te = GetPosixInUsec();
+    fluid_kernel_time += (te - ts);
+
   } catch (platform::EnforceNotMet& exception) {
     framework::AppendErrorOpHint(type, &exception);
     throw std::move(exception);
@@ -233,8 +246,12 @@ void Tracer::TraceOp(const std::string& type, const NameVarBaseMap& ins,
   }
 
   if (ComputeRequiredGrad(new_ins, outs, trace_backward)) {
+    int ts = GetPosixInUsec();
     CreateGradOpNode(*op, new_ins, outs, attrs, default_attrs, place,
                      inplace_map);
+    int te = GetPosixInUsec();
+    fluid_node_time += (te - ts);
+
   } else {
     VLOG(3) << "No Grad to track for Op: " << type;
   }

@@ -112,7 +112,7 @@ class AutogradMeta : public AbstractAutogradMeta {
     if (stop_gradient_ == -1) {
       stop_gradient_ = static_cast<int>(stop_gradient);
     } else {
-      VLOG(0) << "Ignore Stop gradient conversion for Var: "
+      VLOG(6) << "Ignore Stop gradient conversion for Var: "
               << "Set value is: " << stop_gradient_;
     }
   }

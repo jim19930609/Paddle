@@ -23,7 +23,9 @@ limitations under the License. */
 
 #include "paddle/fluid/eager/api/api.h"
 #include "paddle/fluid/eager/autograd_meta.h"
+#include "paddle/fluid/eager/backward.h"
 #include "paddle/fluid/eager/function_api.h"
+#include "paddle/fluid/eager/nodes/accumulation_node.h"
 #include "paddle/fluid/memory/allocation/allocator.h"
 #include "paddle/fluid/memory/memcpy.h"
 #include "paddle/fluid/platform/enforce.h"
@@ -33,11 +35,25 @@ limitations under the License. */
 #include "paddle/pten/common/data_type.h"
 #include "paddle/pten/core/convert_utils.h"
 #include "paddle/pten/core/dense_tensor.h"
+
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wconversion-null"
 
+extern int kernel_time;
+extern int node_time;
+extern int cxx_time;
+extern int fluid_cxx_time;
+extern int fluid_node_time;
+extern int fluid_kernel_time;
+
 namespace paddle {
 namespace pybind {
+
+inline uint64_t GetPosixInUsec() {
+  struct timeval tv;
+  gettimeofday(&tv, nullptr);
+  return (static_cast<uint64_t>(tv.tv_sec) * 1000000 + tv.tv_usec);
+}
 
 int init_numpy_f() {
   import_array();
@@ -140,6 +156,36 @@ static PyObject* eager_api_scale(PyObject* self, PyObject* args,
   return ToPyObject(ret);
 }
 
+static PyObject* eager_api_matmul(PyObject* self, PyObject* args,
+                                  PyObject* kwargs) {
+  // TODO(jiabin): Sync Tensor and Variable here when we support
+  uint64_t ts = GetPosixInUsec();
+  egr::EagerTensor ret = egr::matmul(
+      reinterpret_cast<EagerTensorObject*>(PyTuple_GET_ITEM(args, 0))
+          ->eagertensor,
+      reinterpret_cast<EagerTensorObject*>(PyTuple_GET_ITEM(args, 1))
+          ->eagertensor,
+      CastPyArg2AttrBoolean(PyTuple_GET_ITEM(args, 2), 2),
+      CastPyArg2AttrBoolean(PyTuple_GET_ITEM(args, 3), 3),
+      CastPyArg2AttrBoolean(PyTuple_GET_ITEM(args, 4), 4));
+  uint64_t te = GetPosixInUsec();
+  cxx_time += (te - ts);
+  return ToPyObject(ret);
+}
+
+static PyObject* eager_api_elementwise_add(PyObject* self, PyObject* args,
+                                           PyObject* kwargs) {
+  // TODO(jiabin): Sync Tensor and Variable here when we support
+  egr::EagerTensor ret = egr::elementwise_add(
+      reinterpret_cast<EagerTensorObject*>(PyTuple_GET_ITEM(args, 0))
+          ->eagertensor,
+      reinterpret_cast<EagerTensorObject*>(PyTuple_GET_ITEM(args, 1))
+          ->eagertensor,
+      CastPyArg2AttrInt(PyTuple_GET_ITEM(args, 2), 2),
+      CastPyArg2AttrBoolean(PyTuple_GET_ITEM(args, 3), 3));
+  return ToPyObject(ret);
+}
+
 class EagerNumpyAllocation : public paddle::memory::allocation::Allocation {
  public:
   explicit EagerNumpyAllocation(PyObject* numpy_data, pten::DataType dtype)
@@ -185,8 +231,25 @@ static inline PyObject* eager_api_numpy_to_tensor(PyObject* numpy_data,
   std::shared_ptr<pten::DenseTensor> densetensor(
       new pten::DenseTensor(std::move(meta), pten::TensorStatus()));
 
-  auto holder = std::make_shared<EagerNumpyAllocation>(numpy_data, dtype);
-  densetensor->ShareAllocation(holder);
+  if (place_id == 1) {
+    // Case CPU
+    auto holder = std::make_shared<EagerNumpyAllocation>(numpy_data, dtype);
+    densetensor->ShareAllocation(holder);
+
+#if defined(PADDLE_WITH_CUDA)
+  } else if (place_id == 2) {
+    // Case CUDA
+    auto dst = densetensor->mutable_data();
+    paddle::platform::GpuMemcpySync(
+        dst, (reinterpret_cast<PyArrayObject_fields*>(numpy_data))->data,
+        pten::DataTypeSize(dtype) * PyArray_Size(numpy_data),
+        cudaMemcpyHostToDevice);
+
+#endif
+  } else {
+    PADDLE_THROW(platform::errors::Fatal(
+        "Only CPU and CUDA Places are supported for now."));
+  }
 
   PyObject* obj = pEagerTensorType->tp_alloc(pEagerTensorType, 0);
   if (obj) {
@@ -196,6 +259,12 @@ static inline PyObject* eager_api_numpy_to_tensor(PyObject* numpy_data,
     v->eagertensor.set_name(egr::Controller::Instance().GenerateUniqueName());
     auto meta = egr::EagerUtils::autograd_meta(&(v->eagertensor));
     meta->SetStopGradient(stop_gradient);
+
+    // Created tensor will be leaf tensor
+    // So we append AccumulationNode to it.
+    auto accumulation_node = std::make_shared<egr::GradNodeAccumulation>();
+    meta->SetGradNode(accumulation_node);
+
     // TODO(jiabin): Shall we increase ref cnt here to make python ref cnt num
     // correctly?
   } else {
@@ -204,6 +273,25 @@ static inline PyObject* eager_api_numpy_to_tensor(PyObject* numpy_data,
   }
 
   return obj;
+}
+
+static PyObject* eager_api_retain_grad_for_tensor(PyObject* self,
+                                                  PyObject* args,
+                                                  PyObject* kwargs) {
+  RetainGradForTensor(CastPyArg2EagerTensor(PyTuple_GET_ITEM(args, 0), 0));
+  Py_INCREF(Py_None);
+  return Py_None;
+}
+
+static PyObject* eager_api_run_backward(PyObject* self, PyObject* args,
+                                        PyObject* kwargs) {
+  auto tensors = CastPyArg2VectorOfEagerTensor(PyTuple_GET_ITEM(args, 0), 0);
+  auto grad_tensors =
+      CastPyArg2VectorOfEagerTensor(PyTuple_GET_ITEM(args, 1), 1);
+  RunBackward(tensors, grad_tensors,
+              CastPyArg2AttrBoolean(PyTuple_GET_ITEM(args, 2), 2));
+  Py_INCREF(Py_None);
+  return Py_None;
 }
 
 static PyObject* eager_api_to_tensor(PyObject* self, PyObject* args,
@@ -229,13 +317,36 @@ static PyObject* eager_api_to_tensor(PyObject* self, PyObject* args,
   }
 }
 
+static PyObject* print_profile_time(PyObject* self, PyObject* args,
+                                    PyObject* kwargs) {
+  std::cout << "Eager Kernel Time: " << kernel_time << std::endl;
+  std::cout << "Eager Node Creation Time: " << node_time << std::endl;
+  std::cout << "Eager C++ Total Time: " << cxx_time << std::endl;
+  std::cout << "Fluid Kernel Time: " << fluid_kernel_time << std::endl;
+  std::cout << "Fluid Node Creation Time: " << fluid_node_time << std::endl;
+  std::cout << "Fluid C++ Total Time: " << fluid_cxx_time << std::endl;
+
+  return Py_None;
+}
+
 PyMethodDef variable_functions[] = {
+    {"showtime", (PyCFunction)(void (*)(void))print_profile_time,
+     METH_VARARGS | METH_KEYWORDS, NULL},
     {"to_tensor", (PyCFunction)(void (*)(void))eager_api_to_tensor,
      METH_VARARGS | METH_KEYWORDS, NULL},
     {"scale", (PyCFunction)(void (*)(void))eager_api_scale,
      METH_VARARGS | METH_KEYWORDS, NULL},
+    {"matmul", (PyCFunction)(void (*)(void))eager_api_matmul,
+     METH_VARARGS | METH_KEYWORDS, NULL},
+    {"elementwise_add", (PyCFunction)(void (*)(void))eager_api_elementwise_add,
+     METH_VARARGS | METH_KEYWORDS, NULL},
     {"_set_expected_place",
      (PyCFunction)(void (*)(void))eager_api_set_expected_place,
+     METH_VARARGS | METH_KEYWORDS, NULL},
+    {"retain_grad_for_tensor",
+     (PyCFunction)(void (*)(void))eager_api_retain_grad_for_tensor,
+     METH_VARARGS | METH_KEYWORDS, NULL},
+    {"run_backward", (PyCFunction)(void (*)(void))eager_api_run_backward,
      METH_VARARGS | METH_KEYWORDS, NULL},
     {NULL, NULL, 0, NULL}};
 

@@ -206,7 +206,7 @@ if(WITH_PYTHON)
           DEPENDS ${OP_IMPL_DEPS}
           VERBATIM)
   endif(WIN32)
-  add_custom_target(op_function_generator_cmd ALL DEPENDS ${impl_file})
+  #add_custom_target(op_function_generator_cmd ALL DEPENDS ${impl_file})
 
   list(APPEND PYBIND_DEPS interpretercore standalone_executor)
 
@@ -229,5 +229,5 @@ if(WITH_PYTHON)
 
   get_property (os_dependency_modules GLOBAL PROPERTY OS_DEPENDENCY_MODULES)
   target_link_libraries(paddle_pybind ${os_dependency_modules})
-  add_dependencies(paddle_pybind op_function_generator_cmd)
+  #add_dependencies(paddle_pybind op_function_generator_cmd)
 endif(WITH_PYTHON)

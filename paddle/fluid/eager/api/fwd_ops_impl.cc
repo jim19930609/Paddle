@@ -24,6 +24,7 @@
 
 #include "glog/logging.h"
 
+#include "paddle/fluid/eager/api/api.h"
 #include "paddle/fluid/eager/autograd_meta.h"
 
 #include "paddle/fluid/eager/nodes/elementwise_add_node.h"
@@ -35,6 +36,16 @@
 #include "paddle/fluid/eager/function_api.h"
 #include "paddle/pten/api/all.h"
 #include "paddle/pten/hapi/all.h"
+
+int kernel_time = 0;
+int node_time = 0;
+int cxx_time = 0;
+
+inline uint64_t GetPosixInUsec() {
+  struct timeval tv;
+  gettimeofday(&tv, nullptr);
+  return (static_cast<uint64_t>(tv.tv_sec) * 1000000 + tv.tv_usec);
+}
 
 namespace egr {
 
@@ -115,8 +126,15 @@ egr::EagerTensor matmul(const egr::EagerTensor& x, const egr::EagerTensor& y,
   PADDLE_ENFORCE(y_tensor != nullptr,
                  paddle::platform::errors::Fatal(
                      "Underlying member \"tensor_\" of Input Y is Null"));
+
+  uint64_t ts_kernel = GetPosixInUsec();
+
   paddle::experimental::Tensor out_tensor = paddle::experimental::matmul(
       *x_tensor.get(), *y_tensor.get(), transpose_x, transpose_y);
+
+  uint64_t te_kernel = GetPosixInUsec();
+  kernel_time += (te_kernel - ts_kernel);
+
   out.set_tensor(std::make_shared<paddle::experimental::Tensor>(out_tensor));
 
   // 2. Build Backward Depends
@@ -133,8 +151,11 @@ egr::EagerTensor matmul(const egr::EagerTensor& x, const egr::EagerTensor& y,
   // TODO(zhanlve): which one is more efficient:
   //                1. construct a vector of pointers
   //                2. call "ComputeRequireGrad" multiple times
+  uint64_t ts_node = GetPosixInUsec();
+
   bool require_any_grad =
       ComputeRequireGrad(trace_backward, p_autograd_x, p_autograd_y);
+
   if (require_any_grad) {
     PassStopGradient(false /*generate_grad*/, p_autograd_out);
 
@@ -176,6 +197,9 @@ egr::EagerTensor matmul(const egr::EagerTensor& x, const egr::EagerTensor& y,
     // Set History for output set current Grad Node for
     EagerUtils::SetHistory(p_autograd_out, matmul_node);
   }
+
+  uint64_t te_node = GetPosixInUsec();
+  node_time += (te_node - ts_node);
 
   return out;
 }

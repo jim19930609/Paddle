@@ -26,11 +26,11 @@ class EagerScaleTestCase(unittest.TestCase):
             paddle.set_device("cpu")
             arr = np.ones([4, 16, 16, 32]).astype('float32')
             tensor = paddle.to_tensor(arr, 'float32', core.CPUPlace())
-            print(tensor)
+            #print(tensor)
             tensor = core.eager.scale(tensor, 2.0, 0.9, True, False)
             for i in range(0, 100):
                 tensor = core.eager.scale(tensor, 2.0, 0.9, True, False)
-            print(tensor)
+            #print(tensor)
             self.assertEqual(tensor.shape, [4, 16, 16, 32])
             self.assertEqual(tensor.stop_gradient, True)
             tensor.stop_gradient = False
@@ -45,3 +45,48 @@ class EagerScaleTestCase(unittest.TestCase):
             tensor.persistable = False
             self.assertEqual(tensor.persistable, False)
             self.assertTrue(tensor.place.is_cpu_place())
+
+
+class EagerMatmulTestCase(unittest.TestCase):
+    def test_matmul_base(self):
+        with eager_guard():
+            paddle.set_device("cpu")
+
+            arrX = np.ones([4, 16]).astype('float32')
+            X = paddle.to_tensor(arrX, 'float32', core.CPUPlace())
+            arrY = np.ones([16, 32]).astype('float32')
+            Y = paddle.to_tensor(arrY, 'float32', core.CPUPlace())
+            #print(X)
+            #print(Y)
+
+            Out = core.eager.matmul(X, Y, False, False, False)
+            #print(Out)
+            OutNumpy = Out.numpy()
+            #print(OutNumpy)
+            self.assertEqual(Out.shape, [4, 32])
+            self.assertEqual(Out.stop_gradient, True)
+            self.assertEqual(OutNumpy[0, 0], 16.0)
+
+
+class EagerEWAddTestCase(unittest.TestCase):
+    def test_elementwise_add_base(self):
+        with eager_guard():
+            paddle.set_device("cpu")
+
+            arrX = np.ones([4, 16]).astype('float32')
+            X = paddle.to_tensor(arrX, 'float32', core.CPUPlace())
+            arrY = np.ones([4, 16]).astype('float32')
+            Y = paddle.to_tensor(arrY, 'float32', core.CPUPlace())
+            #print(X)
+            #print(Y)
+
+            Out = core.eager.elementwise_add(X, Y, -1, False)
+            #print(Out)
+            OutNumpy = Out.numpy()
+            self.assertEqual(Out.shape, [4, 16])
+            self.assertEqual(Out.stop_gradient, True)
+            self.assertEqual(OutNumpy[0, 0], 2.0)
+
+
+if __name__ == "__main__":
+    unittest.main()

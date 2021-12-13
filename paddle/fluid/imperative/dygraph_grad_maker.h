@@ -350,8 +350,10 @@ class TracedGradOp {
     if (!var_wrapper->MutableVar()->IsInitialized() ||
         var_wrapper->InplaceVersionSnapshot() ==
             var_wrapper->MutableVar()->CurrentInplaceVersion()) {
+      VLOG(1) << "!!!!!!!!!!!!!!!!!!!!!!! Reuse Variable Wrapper";
       return var_wrapper;
     } else {
+      VLOG(1) << "!!!!!!!!!!!!!!!!!!!!!!! Creating New Variable Wrapper";
       VariableWrapper new_var_wrapper = *var_wrapper.get();
       new_var_wrapper.ResetInplaceVersion();
       return std::make_shared<VariableWrapper>(new_var_wrapper);
